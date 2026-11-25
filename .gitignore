@@ -1,0 +1,7 @@
+# Testausgaben und Bibliotheks-Zwischenspeicher gehören nicht ins Repo
+__pycache__/
+*.png
+!docs/*.png
+node_modules/
+*.tgz
+.DS_Store
