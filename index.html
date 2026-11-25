@@ -53,9 +53,11 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .toast{top:calc(max(12px,env(safe-area-inset-top)) + 66px);left:50%;transform:translate(-50%,-8px);opacity:0;pointer-events:none;background:var(--pan2);border:1px solid rgba(22,230,255,.4);color:#dffcff;padding:9px 16px;border-radius:12px;font-size:15px;transition:opacity .3s,transform .3s;z-index:5;width:max-content;max-width:92vw}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .lbl{position:fixed;z-index:4;pointer-events:none;background:var(--pan2);border:1px solid rgba(255,42,109,.6);color:#fff;font-size:14px;font-weight:600;padding:4px 10px;border-radius:8px;transform:translate(16px,-130%);display:none;white-space:nowrap}
-.menu{top:calc(max(12px,env(safe-area-inset-top)) + 54px);right:max(14px,env(safe-area-inset-right));width:270px;background:var(--pan2);border:1px solid var(--line);border-radius:14px;padding:6px;display:flex;flex-direction:column;backdrop-filter:blur(14px);z-index:4}
+.menu{top:calc(max(12px,env(safe-area-inset-top)) + 54px);right:max(14px,env(safe-area-inset-right));width:270px;background:var(--pan2);border:1px solid var(--line);border-radius:14px;padding:6px;max-height:calc(100dvh - max(12px, env(safe-area-inset-top)) - 66px);overflow:auto;display:flex;flex-direction:column;backdrop-filter:blur(14px);z-index:4}
 .menu[hidden],.dlg[hidden]{display:none}
-.menu button{min-height:44px;text-align:left;padding:0 12px;border:0;background:none;border-radius:9px;font-size:15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.menu button{flex-shrink:0;min-height:44px;text-align:left;padding:0 12px;border:0;background:none;border-radius:9px;font-size:15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.menu-language{flex-shrink:0;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:15px}
+.menu-language select{font:inherit;color:inherit;background:#171221;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 .menu button:hover{background:rgba(255,255,255,.07)}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px;width:auto}
 .menu small{color:var(--mut);font-size:13px}
@@ -90,7 +92,173 @@ body.photo .exitphoto{display:grid;opacity:.55}
 @media (prefers-reduced-motion:reduce){.toast,.ui,.load{transition:none}}
 </style>
 <script>
-window.addEventListener('error',function(e){var el=document.getElementById('err');if(el){el.style.display='block';el.textContent='Fehler: '+(e.message||'Ein Skript konnte nicht laden.');}});
+const english={
+  "Spielfläche von Neon City": "Neon City play area",
+  "Distrikt": "District",
+  "Rückgängig (Strg+Z)": "Undo (Ctrl+Z)",
+  "Rückgängig": "Undo",
+  "Wiederholen (Strg+Y)": "Redo (Ctrl+Y)",
+  "Wiederholen": "Redo",
+  "Stimmung wechseln (N)": "Change ambience (N)",
+  "Stimmung wechseln": "Change ambience",
+  "Regen (R)": "Rain (R)",
+  "Regen": "Rain",
+  "Ton (M)": "Sound (M)",
+  "Ton": "Sound",
+  "Rundflug (Leertaste)": "Orbit camera (Space)",
+  "Rundflug": "Orbit camera",
+  "Fotomodus (P)": "Photo mode (P)",
+  "Fotomodus": "Photo mode",
+  "Mehr": "More",
+  "Zufallsviertel": "Random district",
+  "neu würfeln": "Roll again",
+  "Startviertel": "Starter district",
+  "Leeres Wasser": "Open water",
+  "Offenes Wasser": "Open water",
+  "Stadt-Code kopieren": "Copy city code",
+  "Stadt-Code laden": "Load city code",
+  "An": "On",
+  "Aus": "Off",
+  "Effekte": "Effects",
+  "Hoch": "High",
+  "Schonend": "Low",
+  "Retro-Filter": "Retro filter",
+  "Deine Stadt wird automatisch in diesem Browser gespeichert.": "Your city is saved automatically in this browser.",
+  "Speichern im Browser ist hier nicht möglich. Sichere deine Stadt über den Stadt-Code.": "Browser storage is unavailable here. Keep a copy of your city code to save your city.",
+  "Werkzeuge": "Tools",
+  "Ecke anklicken · Innenecken werden gefüllt · Dachmitte: ganzes Gebäude": "Click a corner · Inside corners fill in · Click the roof center for the whole building",
+  "Zwei Straßen nebeneinander werden eine breite Straße · auf einem Gebäude entsteht ein Durchgang": "Place two roads side by side to make a wide road · Place a road on a building to make a passage",
+  "Stadt-Code": "City code",
+  "Schließen": "Close",
+  "Laden": "Load",
+  "Fotomodus beenden": "Exit photo mode",
+  "Fotomodus beenden (Esc)": "Exit photo mode (Esc)",
+  "Die Stadt wird gebaut …": "Building the city…",
+  "Fehler: {message}": "Error: {message}",
+  "Ein Skript konnte nicht laden.": "A script failed to load.",
+  "three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.": "Could not load three.js. Check your connection and reload the page.",
+  "Sprache": "Language",
+  "Bauen": "Build",
+  "Formen": "Shape",
+  "Kanten": "Corners",
+  "Straße": "Road",
+  "Gestalten": "Style",
+  "Abriss": "Demolish",
+  "Klick setzt einen Block. An einer Wand landet er auf genau dieser Höhe, auch frei auskragend. Ziehen legt eine Fläche.": "Click to place a block. Click a wall to build at that level, even if it overhangs. Drag to fill an area.",
+  "Dach, Unterseite oder Fassade greifen und ziehen (Push/Pull).": "Push or pull roofs, undersides, and walls.",
+  "Ecken eckig, schräg, rund oder hohl. Innenecken werden gefüllt.": "Make corners square, angled, round, or concave. Inside corners fill in.",
+  "Straße oder Platz. Zwei Straßen nebeneinander werden breit.": "Build a road or plaza. Place two roads side by side to make a wide road.",
+  "Park anlegen. Auf einem Park klicken oder hochziehen: Wiese, Bäume, große Bäume, Statue, Brunnen, Monument.": "Create a park. Click or pull it up to add grass, trees, tall trees, a statue, a fountain, or a monument.",
+  "Leuchtschild an der Fassade, Werbetafel auf dem Dach.": "Add a neon sign to a wall or a billboard to a roof.",
+  "Farbe und Stil für ein ganzes Gebäude.": "Change the color and style of a whole building.",
+  "Klick nimmt genau diese Etage weg. Ziehen schneidet ab dieser Höhe.": "Click to remove one floor. Drag to remove everything at that height and above.",
+  "Zufallsfarbe": "Random color",
+  "Farbe {color}": "{color} color",
+  "Zufall": "Random",
+  "Eis": "Ice",
+  "Kirsche": "Cherry",
+  "Säure": "Acid",
+  "Rost": "Rust",
+  "Beton": "Concrete",
+  "Petrol": "Teal",
+  "Konzern": "Corporate",
+  "Pagode": "Pagoda",
+  "Eckig": "Square",
+  "Schräg": "Angled",
+  "Rund": "Round",
+  "Hohl": "Concave",
+  "Platz": "Plaza",
+  "Fläche": "Face",
+  "Etage": "Floor",
+  "Reihe": "Strip",
+  "Block": "Cell",
+  "die ganze zusammenhängende Fläche": "the whole connected face",
+  "nur diese eine Etage": "this floor",
+  "ein Streifen von einem Feld Breite": "a one-cell-wide strip",
+  "ein einzelnes Feld": "a single cell",
+  "Greift {part} · Dach, Unterseite oder Fassade ziehen": "Selects {part} · Drag a roof, underside, or wall",
+  "Wiese": "Grass",
+  "Bäume": "Trees",
+  "Große Bäume": "Tall trees",
+  "Statue": "Statue",
+  "Brunnen": "Fountain",
+  "Monument": "Monument",
+  "Nacht": "Night",
+  "Blaue Stunde": "Blue hour",
+  "Säuresmog": "Acid smog",
+  "Eisnacht": "Ice night",
+  "{count} Etage · höchster Turm {height}": "{count} floor · tallest tower {height}",
+  "{count} Etagen · höchster Turm {height}": "{count} floors · tallest tower {height}",
+  "Ein Finger baut und zieht Flächen · zwei Finger drehen und zoomen · lange drücken reißt ab": "Use one finger to build or drag an area · Use two to rotate or zoom · Press and hold to demolish",
+  "Linke Maustaste baut und zieht · rechte dreht · Rad zoomt · WASD schiebt · Q/E dreht": "Left-click to build or drag · Right-drag to orbit · Scroll to zoom · WASD to pan · Q/E to rotate",
+  "Stimmung: {name}": "Ambience: {name}",
+  "Regen an": "Rain on",
+  "Regen aus": "Rain off",
+  "Ton ist hier nicht verfügbar": "Sound is unavailable here",
+  "Ton konnte nicht starten": "Could not start audio",
+  "Ton an": "Sound on",
+  "Ton aus": "Sound off",
+  "Tilt-Shift an": "Tilt-shift on",
+  "Tilt-Shift aus": "Tilt-shift off",
+  "Rundflug an": "Orbit camera on",
+  "Rundflug aus": "Orbit camera off",
+  "Fotomodus · Esc oder ✕ beendet": "Photo mode · Press Esc or click ✕ to exit",
+  "Neues Viertel: {name}": "New district: {name}",
+  "Startviertel geladen": "Starter district loaded",
+  "Leeres Wasser · klick aufs Wasser, um zu bauen": "Open water · Select the water to start building",
+  "Stadt-Code kopiert": "City code copied",
+  "Effekte: Hoch": "Effects: High",
+  "Effekte: Schonend": "Effects: Low",
+  "Füge einen Stadt-Code ein, den du kopiert oder bekommen hast.": "Paste a city code you copied or received.",
+  "Kopieren war nicht erlaubt. Markiere den Code und kopiere ihn selbst.": "Clipboard access is unavailable. Select the code and copy it manually.",
+  "Stadt geladen: {name}": "City loaded: {name}",
+  "Der Code ließ sich nicht lesen. Prüfe, ob er vollständig ist.": "Could not read the city code. Check that you copied the whole code.",
+  "Das ist kein Neon-City-Code.": "This is not a Neon City code.",
+  "Effekte reduziert, damit alles flüssig läuft": "Effects reduced to keep the game running smoothly",
+  "Tippen oder Fläche ziehen legt eine Wiese an · auf einem Park tippen oder hochziehen: Bäume, Statue, Brunnen, Monument": "Tap or drag to lay grass · Tap or pull a park up to add trees, a statue, a fountain, or a monument",
+  "Klick oder Fläche ziehen legt eine Wiese an · auf einem Park klicken oder hochziehen: Bäume, Statue, Brunnen, Monument": "Click or drag to lay grass · Click or pull a park up to add trees, a statue, a fountain, or a monument",
+  "Klick auf eine Fassade setzt ein Leuchtschild · aufs Dach: Werbetafel an oder aus": "Select a wall to add a neon sign · Select a roof to toggle a billboard",
+  "Tippen nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe": "Tap to remove any single floor · Drag to cut from that height up",
+  "Klick nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe": "Click to remove any single floor · Drag to cut from that height up",
+  "↑ {count} Etagen": "↑ {count} floors",
+  "↓ {count} Etagen": "↓ {count} floors",
+  "↓ {count} Etagen nach unten": "↓ {count} floors down",
+  "↑ {count} Etagen weg": "↑ Remove {count} floors",
+  "→ {count} Felder raus": "→ Extend {count} cells",
+  "← {count} Felder rein": "← Retract {count} cells",
+  "{name} · Ebene {level}": "{name} · Level {level}",
+  " (zu wenig Platz)": " (not enough room)"
+};
+const languageKey='neonstadt-language';
+let language=/^de(?:-|$)/i.test(navigator.language)?'de':'en';
+try{
+  const saved=localStorage.getItem(languageKey);
+  if(saved==='de'||saved==='en')language=saved;
+}catch(e){}
+document.documentElement.lang=language;
+function tr(key,values={}){
+  const message=language==='en'&&Object.hasOwn(english,key)?english[key]:key;
+  return message.replace(/\{(\w+)\}/g,(token,name)=>Object.hasOwn(values,name)?values[name]:token);
+}
+const fixedLabels=[];
+function registerLabels(selector){
+  for(const node of document.querySelectorAll(selector)){
+    for(const child of node.childNodes){
+      if(child.nodeType!==Node.TEXT_NODE||!child.data.trim())continue;
+      const key=child.data.trim();
+      if(Object.hasOwn(english,key))fixedLabels.push(()=>{child.data=tr(key)});
+    }
+    for(const attr of ['title','aria-label']){
+      const key=node.getAttribute(attr);
+      if(key&&Object.hasOwn(english,key))fixedLabels.push(()=>node.setAttribute(attr,tr(key)));
+    }
+  }
+}
+function translateLabels(){fixedLabels.forEach(update=>update())}
+window.addEventListener('error',e=>{
+  const el=document.getElementById('err');
+  if(el){el.style.display='block';el.textContent=tr('Fehler: {message}',{message:e.message||tr('Ein Skript konnte nicht laden.')})}
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
@@ -127,6 +295,7 @@ window.addEventListener('error',function(e){var el=document.getElementById('err'
   <button data-m="tilt">Tilt-Shift <small id="tLbl">An</small></button>
   <button data-m="quality">Effekte <small id="qLbl">Hoch</small></button>
   <button data-m="retro">Retro-Filter <small id="rLbl">Aus</small></button>
+  <label class="menu-language"><span>Sprache</span><select id="language"><option value="de" lang="de">Deutsch</option><option value="en" lang="en">English</option></select></label>
   <p class="note" id="saveNote">Deine Stadt wird automatisch in diesem Browser gespeichert.</p>
 </div>
 
@@ -153,6 +322,11 @@ window.addEventListener('error',function(e){var el=document.getElementById('err'
 <div class="load" id="load"><div><h1>Neon City</h1><p id="loadP">Die Stadt wird gebaut …</p></div></div>
 <div class="err" id="err"></div>
 
+<script>
+registerLabels('[title], [aria-label], #menu button, #menu button small:not([id]), .menu-language span, #rowCorner .side, #rowStreet .side, #dlgT, #dlgNo, #dlgOk, #loadP, #dist, #saveNote');
+translateLabels();
+document.getElementById('language').value=language;
+</script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -617,7 +791,8 @@ function load(json){const d=JSON.parse(json);if(!d||d.app!=='neonstadt'||!Array.
     g[n|0]=cell}
   G=g;if(typeof d.name==='string')district=d.name.slice(0,40)}
 let saveT=0,saveOk=true;
-function autosave(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(LS,snap());saveOk=true}catch(e){saveOk=false}$('#saveNote').textContent=saveOk?'Deine Stadt wird automatisch in diesem Browser gespeichert.':'Speichern im Browser ist hier nicht möglich. Sichere deine Stadt über den Stadt-Code.'},500)}
+function updateSaveNote(){$('#saveNote').textContent=tr(saveOk?'Deine Stadt wird automatisch in diesem Browser gespeichert.':'Speichern im Browser ist hier nicht möglich. Sichere deine Stadt über den Stadt-Code.')}
+function autosave(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(LS,snap());saveOk=true}catch(e){saveOk=false}updateSaveNote()},500)}
 const encode=s=>'NEON2:'+btoa(unescape(encodeURIComponent(s)));
 const decode=s=>{s=s.trim();if(s.startsWith('{'))return s;s=s.replace(/^NEON[12]:/,'');return decodeURIComponent(escape(atob(s.replace(/\s+/g,''))))};
 // Undo als Schnappschuss
@@ -1288,7 +1463,7 @@ void main(){vec2 uv=vUv;if(uGlitch>.01){float band=floor(uv.y*28.+uTime*37.),r=r
 vec2 c=uv-.5;float d=dot(c,c);vec2 off=c*d*.03*uCA;vec3 col=vec3(texture2D(tDiffuse,uv+off).r,texture2D(tDiffuse,uv).g,texture2D(tDiffuse,uv-off).b);
 col=mix(vec3(dot(col,vec3(.299,.587,.114))),col,uSat);col*=1.-uVig*d*1.5;col+=(rnd(uv*uRes+fract(uTime*7.))-.5)*uGrain;col*=1.-uScan*(.5+.5*sin(uv.y*uRes.y*1.7));gl_FragColor=vec4(col,1.);}`});
 composer.addPass(fx);
-function setTilt(on){tiltOn=on;tiltH.enabled=tiltV.enabled=on;fx.uniforms.uSat.value=on?1.16:1;try{localStorage.setItem(LST,on?'1':'0')}catch(e){}const b=document.getElementById('bTilt');if(b)b.setAttribute('aria-pressed',String(on));const l=document.getElementById('tLbl');if(l)l.textContent=on?'An':'Aus'}
+function setTilt(on){tiltOn=on;tiltH.enabled=tiltV.enabled=on;fx.uniforms.uSat.value=on?1.16:1;try{localStorage.setItem(LST,on?'1':'0')}catch(e){}const b=document.getElementById('bTilt');if(b)b.setAttribute('aria-pressed',String(on));const l=document.getElementById('tLbl');if(l)l.textContent=tr(on?'An':'Aus')}
 // ============================================================ Stimmungen
 const ATMOS=[
   {n:'Nacht',top:'#04020c',mid:'#170a2e',hor:'#561a5c',fog:'#170b26',fd:.019,hs:'#4c4478',hg:'#10303a',hi:.85,mc:'#9cb2e6',mi:.85,bl:.9,ba:'#ff2a8a',bb:'#1ad8ff',bs:.8,wt:'#04050b',st:1,rain:'#8ccaff'},
@@ -1323,7 +1498,7 @@ function setQuality(q,manual){Q=q;if(manual){qManual=true;try{localStorage.setIt
   water.visible=!!q;waterLow.visible=!q;gtao.enabled=aoMix.enabled=!!q;renderer.shadowMap.enabled=!!q;moon.castShadow=!!q;
   for(const t of[composer.renderTarget1,composer.renderTarget2]){t.samples=q?4:0;t.dispose()}
   scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)});
-  for(const k in B)B[k].mat.needsUpdate=true;$('#qLbl').textContent=q?'Hoch':'Schonend';onResize()}
+  for(const k in B)B[k].mat.needsUpdate=true;$('#qLbl').textContent=tr(q?'Hoch':'Schonend');onResize()}
 // ============================================================ Ton (Tone.js): Synth-Pad, Bass, Pluck pro Etage, Regenrauschen
 const AU={on:false,ready:false};
 async function audioInit(){if(AU.ready)return true;if(!window.Tone)return false;try{await Tone.start();
@@ -1539,7 +1714,7 @@ function curRegion(g){if(g.face==='top'){const k=g.k+g.delta;return{face:'top',k
 function pullMove(e){const g=gest,p=g.hit.p;let a=project(p.x,p.y,p.z),b;
   if(g.face==='top')b=project(p.x,p.y+H,p.z);else if(g.face==='bottom')b=project(p.x,p.y-H,p.z);else b=project(p.x+DX[g.d],p.y,p.z+DZ[g.d]);
   const vx=b[0]-a[0],vy=b[1]-a[1],l2=Math.max(400,vx*vx+vy*vy),delta=Math.max(-N,Math.min(N,Math.round(((e.clientX-g.x)*vx+(e.clientY-g.y)*vy)/l2)));
-  label(g.face==='top'?(delta>=0?`↑ ${delta} Etagen`:`↓ ${-delta} Etagen`):g.face==='bottom'?(delta>=0?`↓ ${delta} Etagen nach unten`:`↑ ${-delta} Etagen weg`):(delta>=0?`→ ${delta} Felder raus`:`← ${-delta} Felder rein`),e.clientX,e.clientY);
+  label(g.face==='top'?(delta>=0?tr('↑ {count} Etagen',{count:delta}):tr('↓ {count} Etagen',{count:-delta})):g.face==='bottom'?(delta>=0?tr('↓ {count} Etagen nach unten',{count:delta}):tr('↑ {count} Etagen weg',{count:-delta})):(delta>=0?tr('→ {count} Felder raus',{count:delta}):tr('← {count} Felder rein',{count:-delta})),e.clientX,e.clientY);
   if(delta===g.delta)return;
   if(!g.baseSnap){g.baseSnap=snap();g.baseG=G.map(c=>({...c,sg:c.sg.slice(),cn:c.cn?c.cn.slice():undefined}));pushUndo(g.baseSnap)}
   G=g.baseG.map(c=>({...c,sg:c.sg.slice(),cn:c.cn?c.cn.slice():undefined}));
@@ -1547,7 +1722,7 @@ function pullMove(e){const g=gest,p=g.hit.p;let a=project(p.x,p.y,p.z),b;
   changed.forEach(n=>{BIRTH[n]=now;BLV[n]=lv});g.changed=changed;g.delta=delta;ghost.visible=false;rebuild();showRegion(curRegion(g));sfx(delta>0?'up':'down',Math.abs(delta)+2)}
 function parkMove(e){const g=gest,p=g.hit.p,a=project(p.x,p.y,p.z),b=project(p.x,p.y+H,p.z),vx=b[0]-a[0],vy=b[1]-a[1],l2=Math.max(400,vx*vx+vy*vy);
   const lv=clampI(g.lv0+Math.round(((e.clientX-g.x)*vx+(e.clientY-g.y)*vy)/l2),0,PKMAX),c=G[g.ci];
-  label(`${PKN[lv]} · Ebene ${lv}`+(pkFit({...c,pk:lv})<lv?' (zu wenig Platz)':''),e.clientX,e.clientY);if(lv===g.lv)return;
+  label(tr('{name} · Ebene {level}',{name:tr(PKN[lv]),level:lv})+(pkFit({...c,pk:lv})<lv?tr(' (zu wenig Platz)'):''),e.clientX,e.clientY);if(lv===g.lv)return;
   if(!g.baseSnap){g.baseSnap=snap();pushUndo(g.baseSnap)}
   c.pk=lv;BIRTH[g.ci]=T;BLV[g.ci]=0;sfx(lv>g.lv?'up':'down',lv+2);g.lv=lv;rebuild()}
 // Tastatur: gedrückt halten = weich gleiten (mit Anfahren und Ausrollen)
@@ -1579,25 +1754,48 @@ $('#sts').innerHTML=`<button class="st" data-s="-1" aria-pressed="true">Zufall</
 $('#cns').innerHTML=CNN.map((s,n)=>`<button class="st" data-k="${n}" aria-pressed="${n===2}">${s}</button>`).join('');
 $('#pms').innerHTML=PM.map(([id,n])=>`<button class="st" data-p="${id}" aria-pressed="${id==='flaeche'}">${n}</button>`).join('');
 $('#gds').innerHTML=GRD.map(([g,n])=>`<button class="st" data-g="${g}" aria-pressed="${g===1}">${n}</button>`).join('');
+registerLabels('#sts .st, #sws .sw, #cns .st, #pms .st, #gds .st');
+function translateTools(){
+  for(const [id,name,,key,tip] of TOOLS){
+    const button=$(`#tools [data-t="${id}"]`),label=tr(name);
+    button.querySelector('span').textContent=label;
+    button.setAttribute('aria-label',label);
+    button.title=`${label} (${key}): ${tr(tip)}`;
+  }
+  PAL.forEach((color,i)=>$(`#sws [data-c="${i}"]`).setAttribute('aria-label',tr('Farbe {color}',{color:tr(color.n)})));
+}
+translateLabels();
+translateTools();
 const press=(sel,attr,val)=>document.querySelectorAll(sel).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset[attr]===String(val))));
-function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowShape').hidden=t!=='shape';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=HINTS[t]||'';sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
+function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowShape').hidden=t!=='shape';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=tr(HINTS[t]||'');sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
 $('#tools').onclick=e=>{const b=e.target.closest('.tool');if(b)setTool(b.dataset.t)};
 $('#sws').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;state.color=+b.dataset.c;press('.sw','c',state.color);sfx('ui')};
 $('#sts').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.style=+b.dataset.s;press('#sts .st','s',state.style);sfx('ui')};
 $('#cns').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.corner=+b.dataset.k;press('#cns .st','k',state.corner);sfx('ui')};
-function setPullMode(m){state.pullMode=m;press('#pms .st','p',m);$('#pmHint').textContent='Greift '+PM.find(a=>a[0]===m)[2]+' · Dach, Unterseite oder Fassade ziehen';sfx('ui');if(hoverXY&&lastPtr==='mouse'&&state.tool==='shape')hover(...hoverXY)}
+function updatePullHint(){$('#pmHint').textContent=tr('Greift {part} · Dach, Unterseite oder Fassade ziehen',{part:tr(PM.find(a=>a[0]===state.pullMode)[2])})}
+function setPullMode(m){state.pullMode=m;press('#pms .st','p',m);updatePullHint();sfx('ui');if(hoverXY&&lastPtr==='mouse'&&state.tool==='shape')hover(...hoverXY)}
 $('#pms').onclick=e=>{const b=e.target.closest('.st');if(b)setPullMode(b.dataset.p)};setPullMode('flaeche');
 $('#gds').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.ground=+b.dataset.g;press('#gds .st','g',state.ground);sfx('ui')};
-let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200)}
-function stats(){$('#stat').textContent=`${STATS.floors} Etagen · höchster Turm ${STATS.tallest}`;$('#dist').textContent=district}
+let toastT=0;function toast(m){const t=$('#toast');t.textContent=tr(m);t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200)}
+function districtLabel(){
+  if(district==='Offenes Wasser')return tr(district);
+  const generated=/^Distrikt (.+-\d+)$/.exec(district);
+  return generated&&DNAMES.includes(generated[1].split('-')[0])?tr('Distrikt')+' '+generated[1]:district;
+}
+function stats(){
+  const count=STATS.floors,height=STATS.tallest;
+  $('#stat').textContent=tr(count===1?'{count} Etage · höchster Turm {height}':'{count} Etagen · höchster Turm {height}',{count,height});
+  $('#dist').textContent=districtLabel()
+}
 function rebuild(){streetMarks.clear();buildAll();buildStreetGraph();rebuildAux();updLanes();rebuildPeds();rebuildGCars();stats()}
 let glitchV=0;const glitch=v=>{glitchV=Math.max(glitchV,v)};
-const hintEl=$('#hint');let hintN=0;hintEl.textContent=coarse?'Ein Finger baut und zieht Flächen · zwei Finger drehen und zoomen · lange drücken reißt ab':'Linke Maustaste baut und zieht · rechte dreht · Rad zoomt · WASD schiebt · Q/E dreht';
+const hintEl=$('#hint');let hintN=0;function updateIntroHint(){hintEl.textContent=tr(coarse?'Ein Finger baut und zieht Flächen · zwei Finger drehen und zoomen · lange drücken reißt ab':'Linke Maustaste baut und zieht · rechte dreht · Rad zoomt · WASD schiebt · Q/E dreht')}
+updateIntroHint();
 function hintStep(){if(++hintN===4)hintEl.style.opacity='0'}
 setTimeout(()=>{if(hintN<4)hintEl.style.opacity='0'},14000);
 const setP=(id,v)=>$(id).setAttribute('aria-pressed',String(v));
 $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
-$('#bAtmo').onclick=()=>{setAtmo((atmoI+1)%ATMOS.length);toast('Stimmung: '+ATMOS[atmoI].n);sfx('ui')};
+$('#bAtmo').onclick=()=>{setAtmo((atmoI+1)%ATMOS.length);toast(tr('Stimmung: {name}',{name:tr(ATMOS[atmoI].n)}));sfx('ui')};
 function toggleRain(){rainOn=!rainOn;rain.visible=rainOn;water.material.uniforms.uRain.value=rainOn?1:0;setP('#bRain',rainOn);rainVol();toast(rainOn?'Regen an':'Regen aus')}
 $('#bRain').onclick=toggleRain;
 $('#bSound').onclick=async()=>{if(!window.Tone){toast('Ton ist hier nicht verfügbar');return}const ok=await audioInit();if(!ok){toast('Ton konnte nicht starten');return}AU.on=!AU.on;Tone.Destination.mute=!AU.on;setP('#bSound',AU.on);rainVol();toast(AU.on?'Ton an':'Ton aus')};
@@ -1611,24 +1809,35 @@ const menu=$('#menu');function menuOpen(o){menu.hidden=!o;$('#bMenu').setAttribu
 $('#bMenu').onclick=e=>{e.stopPropagation();menuOpen(menu.hidden)};
 addEventListener('pointerdown',e=>{if(!menu.hidden&&!menu.contains(e.target)&&e.target.closest('#bMenu')===null)menuOpen(false)});
 let retro=false;
-function newCity(fn,msg){pushUndo();fn();introBirth();rebuild();autosave();toast(msg)}
+$('#language').onchange=e=>{
+  language=e.target.value;
+  document.documentElement.lang=language;
+  try{localStorage.setItem(languageKey,language)}catch(err){}
+  translateLabels();translateTools();stats();updateIntroHint();updatePullHint();updateSaveNote();
+  $('#rowHintP').textContent=tr(HINTS[state.tool]||'');
+  $('#tLbl').textContent=tr(tiltOn?'An':'Aus');
+  $('#qLbl').textContent=tr(Q?'Hoch':'Schonend');
+  $('#rLbl').textContent=tr(retro?'An':'Aus');
+  $('#toast').classList.remove('show');
+};
+function newCity(fn,msg){pushUndo();fn();introBirth();rebuild();autosave();toast(tr(msg,{name:districtLabel()}))}
 menu.onclick=async e=>{const b=e.target.closest('button');if(!b)return;const m=b.dataset.m;
-  if(m==='random')newCity(()=>generate((Math.random()*1e6)|0),'Neues Viertel: '+district);
+  if(m==='random')newCity(()=>generate((Math.random()*1e6)|0),'Neues Viertel: {name}');
   else if(m==='start')newCity(()=>generate(7),'Startviertel geladen');
   else if(m==='empty')newCity(()=>{G=emptyGrid();district='Offenes Wasser'},'Leeres Wasser · klick aufs Wasser, um zu bauen');
   else if(m==='copy'){const code=encode(snap());try{await navigator.clipboard.writeText(code);toast('Stadt-Code kopiert')}catch(err){openDlg('copy',code)}}
   else if(m==='paste')openDlg('paste','');
   else if(m==='orbit')toggleOrbit();else if(m==='photo')photo(true);else if(m==='tilt')toggleTilt();
   else if(m==='quality'){setQuality(Q?0:1,true);toast(Q?'Effekte: Hoch':'Effekte: Schonend')}
-  else if(m==='retro'){retro=!retro;fx.uniforms.uScan.value=retro?.09:0;fx.uniforms.uCA.value=retro?2.2:.4;$('#rLbl').textContent=retro?'An':'Aus'}
+  else if(m==='retro'){retro=!retro;fx.uniforms.uScan.value=retro?.09:0;fx.uniforms.uCA.value=retro?2.2:.4;$('#rLbl').textContent=tr(retro?'An':'Aus')}
   if(m!=='quality'&&m!=='retro'&&m!=='tilt')menuOpen(false)};
 const dlg=$('#dlg');let dlgMode='';
 function openDlg(mode,code){dlgMode=mode;dlg.hidden=false;$('#dlgTx').value=code;$('#dlgOk').style.display=mode==='paste'?'':'none';
-  $('#dlgP').textContent=mode==='paste'?'Füge einen Stadt-Code ein, den du kopiert oder bekommen hast.':'Kopieren war nicht erlaubt. Markiere den Code und kopiere ihn selbst.';
+  $('#dlgP').textContent=tr(mode==='paste'?'Füge einen Stadt-Code ein, den du kopiert oder bekommen hast.':'Kopieren war nicht erlaubt. Markiere den Code und kopiere ihn selbst.');
   setTimeout(()=>{$('#dlgTx').focus();if(mode==='copy')$('#dlgTx').select()},30)}
 $('#dlgNo').onclick=()=>dlg.hidden=true;
-$('#dlgOk').onclick=()=>{try{const json=decode($('#dlgTx').value);pushUndo();restore(json);dlg.hidden=true;toast('Stadt geladen: '+district)}catch(err){undoS.pop();updUndo();$('#dlgP').textContent='Der Code ließ sich nicht lesen. Prüfe, ob er vollständig ist.'}};
-addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA')return;const k=e.key.toLowerCase();
+$('#dlgOk').onclick=()=>{try{const json=decode($('#dlgTx').value);pushUndo();restore(json);dlg.hidden=true;toast(tr('Stadt geladen: {name}',{name:districtLabel()}))}catch(err){undoS.pop();updUndo();$('#dlgP').textContent=tr('Der Code ließ sich nicht lesen. Prüfe, ob er vollständig ist.')}};
+addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return}if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo();return}
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   if(MOVEK.includes(k)){keys.add(k);killIntro();if(k.startsWith('arrow')||k.startsWith('page'))e.preventDefault();return}
@@ -1667,6 +1876,6 @@ requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0'
 window.NEON={idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
-<script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent='three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.';}},15000);</script>
+<script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent=tr('three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.');}},15000);</script>
 </body>
 </html>
