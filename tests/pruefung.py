@@ -76,15 +76,18 @@ def proj(pg, x, y, z):
     return pg.evaluate(f'NEON.project({x},{y},{z})')
 
 
-LEER = "NEON.G=Array.from({length:400},()=>({k:0,h:0,s:0,c:0,a:0,sg:[]}));NEON.rebuild()"
+LEER = "NEON.G=Array.from({length:400},()=>({g:0,m:0,s:0,c:0,sg:[]}));NEON.rebuild()"
 D, H = 0.14, 0.62
+BAUTEN = "NEON.G.filter(c=>c.m)"
 
 
 def desktop(p):
     browser, pg, meldungen = seite(p, 1400, 860)
     pg.wait_for_timeout(6000)
+    pg.evaluate('NEON.killIntro()')
     st = pg.evaluate('NEON.STATS')
     pruefe('Startviertel erzeugt', st['floors'] > 100, f"{st['floors']} Etagen")
+    pruefe('Autos auf den Straßen', pg.evaluate('NEON.gcars') > 0, f"{pg.evaluate('NEON.gcars')} Autos")
     pg.screenshot(path=str(OUT / 'start.png'))
 
     pg.evaluate(LEER)
@@ -95,19 +98,23 @@ def desktop(p):
         pg.mouse.move(a[0] + (b[0] - a[0]) * t / 10, a[1] + (b[1] - a[1]) * t / 10)
     lbl = pg.evaluate("document.getElementById('lbl').textContent")
     pg.mouse.up()
-    n = pg.evaluate('NEON.G.filter(c=>c.k===3).length')
+    n = pg.evaluate(BAUTEN + '.length')
     pruefe('Fläche 4×4 aufziehen', n == 16 and lbl == '4 × 4', f'{n} Zellen, Etikett „{lbl}“')
-    pruefe('Fläche ist ein Gebäude (gleicher Stil und gleiche Farbe)', pg.evaluate("new Set(NEON.G.filter(c=>c.k===3).map(c=>c.s+'/'+c.c)).size") == 1)
+    pruefe('Fläche ist ein Gebäude (gleicher Stil und gleiche Farbe)', pg.evaluate(f"new Set({BAUTEN}.map(c=>c.s+'/'+c.c)).size") == 1)
 
     pg.evaluate("NEON.setTool('shape')")
     p0 = proj(pg, 0, D + H, 0)
     pg.mouse.move(*p0)
+    pg.wait_for_timeout(200)
+    hl0 = pg.evaluate('NEON.hl.count')
     pg.mouse.down()
     for t in range(1, 11):
         pg.mouse.move(p0[0], p0[1] - t * 15)
+    hl1 = pg.evaluate('NEON.hl.count')
     pg.mouse.up()
-    hs = pg.evaluate('[...new Set(NEON.G.filter(c=>c.k===3).map(c=>c.h))]')
+    hs = pg.evaluate(f'[...new Set({BAUTEN}.map(c=>NEON.topOf(c.m)))]')
     pruefe('Dach hochziehen (Push/Pull)', len(hs) == 1 and hs[0] > 3, f'Höhe {hs}')
+    pruefe('Push/Pull-Fläche leuchtet beim Zeigen und Ziehen', hl0 == 16 and hl1 == 16, f'{hl0} / {hl1} Felder')
 
     q, qq = proj(pg, 2.0, D + 1.5 * H, 0.5), proj(pg, 4.0, D + 1.5 * H, 0.5)
     pg.mouse.move(*q)
@@ -115,14 +122,13 @@ def desktop(p):
     for t in range(1, 11):
         pg.mouse.move(q[0] + (qq[0] - q[0]) * t / 10, q[1] + (qq[1] - q[1]) * t / 10)
     pg.mouse.up()
-    n = pg.evaluate('NEON.G.filter(c=>c.k===3).length')
+    n = pg.evaluate(BAUTEN + '.length')
     pruefe('Fassade herausziehen', n > 16, f'{n} Zellen')
 
     pg.evaluate("NEON.setTool('corner')")
-    h = pg.evaluate('NEON.G.find(c=>c.k===3).h')
+    h = pg.evaluate('NEON.topOf(NEON.G.find(c=>c.m).m)')
     pg.mouse.click(*proj(pg, 0.5, D + h * H, 0.5))
-    cn = pg.evaluate("NEON.G.filter(c=>c.k===3).every(c=>c.cn&&c.cn.every(v=>v===2))")
-    pruefe('Ganzes Gebäude abrunden (Dachmitte)', cn)
+    pruefe('Ganzes Gebäude abrunden (Dachmitte)', pg.evaluate(BAUTEN + '.every(c=>c.cn&&c.cn.every(v=>v===2))'))
     pg.wait_for_timeout(1200)
     pg.screenshot(path=str(OUT / 'formen.png'))
 
@@ -131,11 +137,45 @@ def desktop(p):
     pg.evaluate('NEON.redo()')
     pruefe('Rückgängig und Wiederholen', pg.evaluate('NEON.snap()') == vorher)
     pruefe('Stadt-Code Rundreise', pg.evaluate('(()=>{const s=NEON.snap();NEON.load(s);return NEON.snap()===s})()'))
+    alt = '{"v":1,"app":"neonstadt","n":20,"cells":[[210,3,3,1,2,0],[211,3,4,1,2,1],[212,1,0,0,0,0]]}'
+    erg = pg.evaluate(f"(()=>{{NEON.load({alt!r});const G=NEON.G;return[G[210].m,G[211].m,G[211].g,G[212].g]}})()")
+    pruefe('Spielstand im alten Format 1 wird umgebaut', erg == [7, 14, 1, 1], str(erg))
 
-    erg = pg.evaluate("""(()=>{NEON.generate(7);NEON.rebuild();
-      NEON.rectPlan({tool:'erase',i0:0,j0:0,i1:19,j1:19,Lb:2}).run();
-      return Math.max(...NEON.G.filter(c=>c.k===3).map(c=>c.h))})()""")
+    # Überhang: Seitenklick auf Höhe 3 setzt einen frei auskragenden Block, Rechtsklick nimmt eine Etage aus der Mitte
+    pg.evaluate(LEER + ";NEON.G[10*20+10]={g:0,m:63,s:1,c:0,sg:[]};NEON.rebuild();NEON.setTool('build')")
+    pg.mouse.click(*proj(pg, 1.0, D + 3.5 * H, 0.5))
+    m = pg.evaluate('NEON.G[10*20+11].m')
+    pruefe('Überhang auf Höhe 3 per Seitenklick', m == 8, f'Maske {m}')
+    pg.mouse.click(*proj(pg, 0.5, D + 1.5 * H, 1.0), button='right')
+    m = pg.evaluate('NEON.G[10*20+10].m')
+    pruefe('Etage aus der Mitte abreißen', m == 61, f'Maske {m}')
+
+    # Innenecke einer L-Form wird gefüllt, Hohlkehle an Außenecken
+    n = pg.evaluate(LEER + """;(()=>{const G=NEON.G,s=(n)=>G[n]={g:0,m:15,s:1,c:3,sg:[],cn:[2,2,2,2]};s(210);s(211);s(230);G[250]={g:0,m:15,s:0,c:1,sg:[],cn:[3,3,3,3]};NEON.rebuild();return[NEON.B.f12.n,NEON.B.q03.n]})()""")
+    pruefe('Innenecke gefüllt und Hohlkehle gebaut', n[0] >= 4 and n[1] >= 4, f'Füllstücke {n[0]}, Hohlkehlen-Viertel {n[1]}')
+
+    # Abriss-Rechteck schneidet auf Höhe 2
+    erg = pg.evaluate("""(()=>{NEON.generate(7);NEON.rebuild();NEON.rectPlan({tool:'erase',i0:0,j0:0,i1:19,j1:19,Lb:2}).run();return Math.max(...NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)))})()""")
     pruefe('Abriss-Rechteck schneidet auf Höhe 2', erg == 2, f'höchstes Gebäude {erg}')
+
+    # Tastatur: gedrückt halten gleitet und rollt nach dem Loslassen aus
+    pg.evaluate('NEON.generate(7);NEON.rebuild()')
+    z0 = pg.evaluate('NEON.controls.target.z')
+    pg.keyboard.down('w')
+    pg.wait_for_timeout(300)
+    z1 = pg.evaluate('NEON.controls.target.z')
+    pg.wait_for_timeout(700)
+    z2 = pg.evaluate('NEON.controls.target.z')
+    pg.keyboard.up('w')
+    pg.wait_for_timeout(500)
+    z3 = pg.evaluate('NEON.controls.target.z')
+    weich = abs(z1 - z0) < abs(z2 - z1) and abs(z3 - z2) > 0.001
+    pruefe('Tastatur gleitet weich (anfahren und ausrollen)', weich, f'{z0:.2f} → {z1:.2f} → {z2:.2f} → {z3:.2f}')
+
+    pg.evaluate('NEON.setTilt(false)')
+    aus = pg.evaluate('NEON.tiltOn')
+    pg.evaluate('NEON.setTilt(true)')
+    pruefe('Tilt-Shift schaltbar', aus is False and pg.evaluate('NEON.tiltOn') is True)
     pruefe('Keine Seitenfehler (Desktop)', not meldungen, '; '.join(meldungen[:3]))
     browser.close()
 
@@ -143,12 +183,13 @@ def desktop(p):
 def handy(p):
     browser, pg, meldungen = seite(p, 390, 844, touch=True)
     pg.wait_for_timeout(5000)
+    pg.evaluate('NEON.killIntro()')
     pg.evaluate(LEER)
     pg.touchscreen.tap(*proj(pg, 0.5, 0, 0.5))
     pg.wait_for_timeout(300)
     pg.touchscreen.tap(*proj(pg, 0.5, D + H, 0.5))
     pg.wait_for_timeout(300)
-    hs = pg.evaluate("NEON.G.filter(c=>c.k===3).map(c=>c.h).join(',')")
+    hs = pg.evaluate("NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)).join(',')")
     pruefe('Tippen baut und stockt auf', hs == '2', hs)
     pg.screenshot(path=str(OUT / 'handy.png'))
     pruefe('Keine Seitenfehler (Handy)', not meldungen, '; '.join(meldungen[:3]))
