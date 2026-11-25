@@ -397,16 +397,17 @@ if(on>.5 && det>0.){
   }
   float pm=0.;
   if(ppl>0.){
-    float tp=dep*(.24+.17*fract(sd*5.9))/dr.z;
+    float tp=(.11+.055*fract(sd*5.9))/dr.z;
     if(tp<t){
       vec2 point=o.xy+dr.xy*tp;
-      float size=clamp(Hh*1.24,.30,.56);
+      // Atlas-Kantenlänge in Weltkoordinaten, für Wohnfenster und Läden gleich.
+      const float residentSize=.32;
       // Leicht verdeckte Beine, Oberkörper und Requisite oberhalb der Brüstung.
       float feet=max(yLo,-.5*Hh-.055);
-      vec2 figure=(point-vec2(psx,feet))/size+vec2(.5,.10);
+      vec2 figure=(point-vec2(psx,feet))/residentSize+vec2(.5,.10);
       if(fract(sd*61.)>.5)figure.x=1.-figure.x;
       vec2 tile=vec2(mod(pose,4.),1.-floor(pose/4.));
-      float lod=clamp(log2(max(1.,128.*max(pixel.x*W,pixel.y*Hh)/size)),0.,3.);
+      float lod=clamp(log2(max(1.,128.*max(pixel.x*W,pixel.y*Hh)/residentSize)),0.,3.);
       // Transparenter Rand verhindert Übergreifen in die nächste Pose.
       vec2 uv=(tile+clamp(figure,.035,.965))/vec2(4.,2.);
       if(all(greaterThan(figure,vec2(0.)))&&all(lessThan(figure,vec2(1.))))pm=textureLod(uResidents,uv,lod).a*det;
