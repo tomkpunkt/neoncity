@@ -796,7 +796,9 @@ function roadPortal(i,j,k,st,F,Gl,ci){const ax=roadAxis(i,j),yt=D+k*H,x=wx(i),z=
   else{column(x+.44,z+.44,D,yt,st,F,Gl,ci);column(x-.44,z-.44,D,yt,st,F,Gl,ci);beam(x+.44,z+.44,x-.44,z-.44,yt,st,F,Gl,ci)}}
 function bracket(i,j,k,dOut,st,F,Gl,ci){   // schlanker L-Verbinder an den Ecken der tragenden Wand, damit die Fenster frei bleiben
   const yt=D+k*H,px=wx(i)+DX[dOut]*(.5-GAP),pz=wz(j)+DZ[dOut]*(.5-GAP),r=DROT[dOut]-Math.PI/2,ox=DX[dOut],oz=DZ[dOut],re=.42,de=.3;
+  const cw=G[ix(i,j)],shp=extents(cw,i,j,k-1).shp;   // Ecken der tragenden Wand unter dem Überhang
   for(const s of[-.41,.41]){const bx=px+TX[dOut]*s,bz=pz+TZ[dOut]*s;
+    if(shp[s>0?(dOut+3)%4:dOut])continue;   // abgerundete/abgeschrägte Ecke: hier keine Stütze
     if(st===1){B.wedgeC.add(bx,yt,bz,.34,.3,.07,r,concCol(F),ci);continue}
     const c=st===3?SUPC[3]:st===2?SUPC[2]:SUPC[0];
     B.dark.add(bx+ox*re/2,yt-.012,bz+oz*re/2,re,.024,.035,r,c,ci);B.dark.add(bx+ox*.012,yt-de/2,bz+oz*.012,.024,de,.035,r,c,ci);

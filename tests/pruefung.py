@@ -193,6 +193,12 @@ def desktop(p):
         return pg.evaluate(js)
     w, xs = stuetzen(1)
     pruefe('Überhang 1 Feld: L-Verbinder', w == 2 and not xs, f'{w} Keile')
+    # Eckmodifikation an der tragenden Wand: an dieser Ecke kein L-Verbinder
+    def keile(cn):
+        return pg.evaluate(LEER + f""";(()=>{{const G=NEON.G;G[10*20+3]={{g:0,m:31,s:1,c:2,sg:[],cn:{cn}}};G[10*20+4]={{g:0,m:16,s:1,c:2,sg:[]}};
+          NEON.rebuild();const M=NEON.B.wedgeC.M,zs=[];for(let q=0;q<NEON.B.wedgeC.n;q++)zs.push(+(M[q*16+14]+9.5).toFixed(2));return zs}})()""")
+    alle, eine = keile('[2,2,2,2]'), keile('[2,0,0,0]')
+    pruefe('Abgerundete Ecken: kein L-Verbinder an diesen Ecken', alle == [] and len(eine) == 1 and eine[0] < 10, f'alle rund {alle}, eine Ecke rund {eine}')
     erg = {n: sorted(stuetzen(n)[1]) for n in [2, 3, 4, 5, 6]}
     soll = {2: [5.0], 3: [6.0], 4: [5.0, 7.0], 5: [6.0, 8.0], 6: [5.0, 7.0, 9.0]}
     pruefe('Stützen alle zwei Felder: 2, 3, 2-4, 3-5, 2-4-6', erg == soll, str(erg))
