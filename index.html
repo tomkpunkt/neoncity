@@ -286,6 +286,34 @@ for(let e=0;e<16;e++){ATL_V.push([(e*64+2)/1024,1-254/1024,60/1024,252/1024]);co
 // ============================================================ Material-Shader: Hüpfen beim Bauen, Neon-Streulicht, Welt-UVs
 // Innenraum hinter dem Fenster (Interior Mapping): Strahl vom Auge in einen Raum hinter der Scheibe, Wände, Boden, Decke mit Lampe, Möbel aus Zufall je Fenster
 // Acht hinterleuchtete Alltagsszenen. Der Atlas wird einmal beim Start gezeichnet.
+// Der Gaussian Blur wird einmal pro Pose berechnet. Die Kacheln bleiben getrennt.
+function blurResidentTile(ctx,x,y,size){
+  const image=ctx.getImageData(x,y,size,size),data=image.data;
+  const sigma=4.5,radius=Math.ceil(3*sigma),weights=[];
+  let sum=0;
+  for(let offset=-radius;offset<=radius;offset++){
+    const weight=Math.exp(-.5*(offset/sigma)**2);
+    weights.push(weight);sum+=weight;
+  }
+  const horizontal=new Float32Array(size*size);
+  for(let row=0;row<size;row++)for(let col=0;col<size;col++){
+    let alpha=0;
+    for(let dx=Math.max(-radius,-col);dx<=Math.min(radius,size-1-col);dx++){
+      alpha+=data[(row*size+col+dx)*4+3]*weights[dx+radius];
+    }
+    horizontal[row*size+col]=alpha/sum;
+  }
+  for(let row=0;row<size;row++)for(let col=0;col<size;col++){
+    let alpha=0;
+    for(let dy=Math.max(-radius,-row);dy<=Math.min(radius,size-1-row);dy++){
+      alpha+=horizontal[(row+dy)*size+col]*weights[dy+radius];
+    }
+    // Transparenter Rand für Atlas-Mipmaps, auch bei erhobenen Armen.
+    const edge=Math.min(row,col,size-1-row,size-1-col);
+    data[(row*size+col)*4+3]=alpha/sum*Math.min(1,edge/8);
+  }
+  ctx.putImageData(image,x,y);
+}
 function makeResidentAtlas(){
   const size=128,[canvas,ctx]=cv(size*4,size*2);
   const shape=(points)=>{ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill()};
@@ -336,6 +364,7 @@ function makeResidentAtlas(){
         person(49,0,3,false,[[[11,42],[19,37]],[[-9,42],[-14,53]]],false);break;
     }
     ctx.restore();
+    blurResidentTile(ctx,(pose%4)*size,(pose>>2)*size,size);
   }
   return new THREE.CanvasTexture(canvas);
 }
@@ -410,10 +439,12 @@ if(on>.5 && det>0.){
       float lod=clamp(log2(max(1.,128.*max(pixel.x*W,pixel.y*Hh)/residentSize)),0.,3.);
       // Transparenter Rand verhindert Übergreifen in die nächste Pose.
       vec2 uv=(tile+clamp(figure,.035,.965))/vec2(4.,2.);
-      if(all(greaterThan(figure,vec2(0.)))&&all(lessThan(figure,vec2(1.))))pm=textureLod(uResidents,uv,lod).a*det;
+      vec2 padding=min(figure,1.-figure);
+      float edge=min(padding.x,padding.y);
+      if(edge>0.)pm=textureLod(uResidents,uv,lod).a*det*smoothstep(0.,.035,edge);
     }
   }
-  col=mix(col,L*wall*.55,.16+.18*fz);col=mix(col,L*.035+vec3(.004),pm*.9);
+  col=mix(col,L*wall*.55,.16+.18*fz);col=mix(col,L*.035+vec3(.004),pm*.77);
   if(IROOM!=2){float cur=step(.66,fract(sd*53.)),bl=step(.7,fract(sd*13.))*(1.-cur);
     if(cur>.5){float fo=.82+.18*sin(uw.x*W*95.+2.*sin(uw.y*4.+sd*9.));float opening=.14+.12*fract(sd*11.)+.055*sin(uw.y*3.);float drape=1.-smoothstep(opening-aa,opening+aa,min(uw.x,1.-uw.x));col=mix(col,L*wall*.55*fo,.84*drape);}
     float cut=1.-(.15+.55*fract(sd*17.));if(bl>.5&&uw.y>cut)col=L*(.34+.12*smoothstep(.25,.75,fract(uw.y*Hh*70.)));}
