@@ -275,13 +275,11 @@ for(let e=0;e<16;e++){ATL_V.push([(e*64+2)/1024,1-254/1024,60/1024,252/1024]);co
 // ============================================================ Material-Shader: Hüpfen beim Bauen, Neon-Streulicht, Welt-UVs
 // Innenraum hinter dem Fenster (Interior Mapping): Strahl vom Auge in einen Raum hinter der Scheibe, Wände, Boden, Decke mit Lampe, Möbel aus Zufall je Fenster
 const ROOM_GLSL=`{vec3 N=normalize(vNw),Tn=normalize(cross(vec3(0.,1.,0.),N)),V=normalize(vWp-cameraPosition);
-vec3 dr=vec3(dot(V,Tn),V.y,-dot(V,N));dr.z=max(dr.z,.02);
-float W=max(vScl.x,.05),Hh=max(vScl.y,.05),sd=floor(vSeed*4096.+.5)/4096.;vec2 uw=vMapUv;
-float bx=W*.5+.05,yLo=-Hh*.5-(IROOM==2?.06:.13),yHi=Hh*.5+.05,dep=IROOM==2?.6:clamp(.32+W*.45,.38,.75);
-vec3 o=vec3((uw.x-.5)*W,(uw.y-.5)*Hh,0.),bnd=vec3(dr.x>=0.?bx:-bx,dr.y>=0.?yHi:yLo,dep);
-vec3 dd=vec3(abs(dr.x)<1e-4?(dr.x>=0.?1e-4:-1e-4):dr.x,abs(dr.y)<1e-4?(dr.y>=0.?1e-4:-1e-4):dr.y,dr.z);
-vec3 tb=(bnd-o)/dd;float t=min(min(tb.x,tb.y),tb.z);vec3 p=o+dr*t;float fz=clamp(p.z/dep,0.,1.);
-float dist=length(vWp-cameraPosition),det=1.-smoothstep(8.,24.,dist),aa=.01+fwidth(uw.x)*W*2.5;
+vec2 uw=vMapUv;
+float W=max(vScl.x,.05),Hh=max(vScl.y,.05),sd=floor(vSeed*4096.+.5)/4096.;
+vec2 pixel=fwidth(uw);
+float footprint=max(pixel.x,pixel.y),det=1.-smoothstep(.045,.17,footprint);
+float aa=.008+max(pixel.x*W,pixel.y*Hh);
 vec3 L=vColor;float lum=max(L.r,max(L.g,L.b)),base=step(.15,lum);
 float per=8.+22.*fract(sd*23.1),tt=uTime/per+sd*17.,cy=floor(tt),since=fract(tt)*per,thr=IROOM==2?.04:(base>.5?.18:.9);
 float on=step(thr,h1(vec2(cy,sd*91.))),was=step(thr,h1(vec2(cy-1.,sd*91.)));
@@ -290,29 +288,60 @@ if(on>was&&since<.9)on*=step(.45,h1(vec2(floor(uTime*22.),sd*7.)));
 float tv=step(.8,fract(sd*9.7))*float(IROOM!=2);
 if(tv>.5)L*=mix(vec3(1.),vec3(.5,.72,1.3),.45+.4*h1(vec2(floor(uTime*4.),sd)));
 vec3 wall=IROOM==2?vec3(.8,.79,.75):mix(vec3(.6,.55,.5),vec3(.5,.54,.58),step(.5,fract(sd*3.3))),col;
-vec2 q=vec2((p.x+bx)/(2.*bx),(p.y-yLo)/(yHi-yLo));
-float sit=step(.7,fract(sd*12.9)),hgt=mix(.34+.04*fract(sd*27.),.25,sit),ppl=on*step(.3,fract(sd*31.7))*det;
-float pk=uTime/(6.+6.*fract(sd*8.3))+sd*5.,pk0=floor(pk),pkf=fract(pk),mov=smoothstep(.5,1.,pkf);   // Leute bleiben stehen, gehen weiter, verlassen manchmal das Fenster
-float psx=mix(mix((h1(vec2(pk0,sd*13.))-.5)*2.4*bx,(h1(vec2(pk0+1.,sd*13.))-.5)*2.4*bx,mov),(fract(sd*19.)-.5)*bx*1.1+.012*sin(uTime*.6+sd*9.),sit);
-if(t==tb.z){col=wall*.8;
-  if(IROOM==2){float sy=fract(q.y*3.);col=mix(col,vec3(.14),fil(abs(sy-.05)-.035,aa*3.)*det);
-    vec2 cell=floor(q*vec2(9.,3.)),cq=fract(q*vec2(9.,3.));float pr=step(.35,h1(cell+sd))*fil(sbx(cq,vec2(.5,.36),vec2(.3,.2)),aa*8.);col=mix(col,vec3(h1(cell+1.3),h1(cell+2.1),h1(cell+3.7))*1.1,pr*det);}
-  else{float cab=fil(sbx(q,vec2(fract(sd*3.1),.12),vec2(.12+.1*fract(sd*5.3),.1+.12*fract(sd*7.))),aa*3.);col=mix(col,vec3(.16,.13,.11),cab*.8);
-    float pic=step(.55,fract(sd*5.))*fil(sbx(q,vec2(.2+.6*fract(sd*11.),.68),vec2(.07,.08)),aa*3.);col=mix(col,vec3(.9,.4,.55),pic*det*.8);
-    col=mix(col,vec3(.4,.7,1.5),tv*fil(sbx(q,vec2(.5,.42),vec2(.13,.08)),aa*3.));}
-  col*=1.-ppl*.4*fil(psil(vec2(p.x-psx*1.12,p.y-yLo)/1.18,hgt),.05);}
-else if(t==tb.x){col=wall*.66;col=mix(col,vec3(.2,.17,.14),step(.4,fract(sd*2.3))*fil(abs(q.y-.45)-.02,aa*3.)*det);}
-else if(dr.y<0.){col=(IROOM==2?vec3(.45,.45,.43):vec3(.3,.24,.2))*(.55+.45*fz);col=mix(col,vec3(.45,.15,.2),float(IROOM!=2)*step(.5,fract(sd*4.1))*fil(sbx(vec2(p.x/bx,fz),vec2(0.,.5),vec2(.3,.22)),.08)*.55);}
-else{col=wall*.9;float lamp=IROOM==2?fil(abs(fz-.5)-.04,.05)*fil(abs(p.x/bx)-.4,.06):1.-smoothstep(0.,.32,length(vec2(p.x/bx-(fract(sd*6.1)-.5)*.6,fz-.5)));col+=lamp*1.6;}
-col*=L*(1.1-.6*fz);col=mix(L*wall*.6*(1.1-.4*fz),col,.3+.7*det);
-float pm=0.;if(ppl>0.){float tp=dep*(.3+.35*fract(sd*5.9))/dr.z;if(tp<t){vec3 pp=o+dr*tp;pm=fil(psil(vec2(pp.x-psx,pp.y-yLo-(1.-sit)*step(.5,pkf)*step(pkf,.99)*.007*abs(sin(uTime*7.+sd*20.))),hgt),.007+aa*.5)*.9;}}
-col=mix(col,L*wall*.55,.16+.18*fz);col=mix(col,L*.035+vec3(.004),pm*.9);
-if(IROOM!=2){float cur=step(.66,fract(sd*53.)),bl=step(.7,fract(sd*13.))*(1.-cur);
-  if(cur>.5){float fo=.82+.18*sin(uw.x*W*95.+2.*sin(uw.y*4.+sd*9.));col=mix(col,L*wall*.75*fo*(1.-pm*.5),.74);}
-  float cut=1.-(.15+.55*fract(sd*17.));if(bl>.5&&uw.y>cut)col=L*(.34+.12*smoothstep(.25,.75,fract(uw.y*Hh*70.)));}
-if(on<.5)col=wall*.02+vec3(.006,.008,.014)+step(.66,fract(sd*53.))*vec3(.02,.018,.03);
-vec3 R=reflect(V,N);float fr=.05+.6*pow(1.-abs(dot(V,N)),4.);col=mix(col,mix(vec3(.015,.015,.03),vec3(.15,.08,.22),smoothstep(-.1,.6,R.y)),fr);
+vec3 unlit=wall*.02+vec3(.006,.008,.014)+step(.66,fract(sd*53.))*vec3(.02,.018,.03);
+vec3 distant=L*wall*(.52+.11*uw.y);
+col=unlit;
+if(on>.5) col=distant;
+if(on>.5 && det>0.){
+  vec3 dr=vec3(dot(V,Tn),V.y,-dot(V,N));dr.z=max(dr.z,.02);
+  float bx=W*.5+.05,yLo=-Hh*.5-(IROOM==2?.06:.13),yHi=Hh*.5+.05,dep=IROOM==2?.6:clamp(.32+W*.45,.38,.75);
+  vec3 o=vec3((uw.x-.5)*W,(uw.y-.5)*Hh,0.),bnd=vec3(dr.x>=0.?bx:-bx,dr.y>=0.?yHi:yLo,dep);
+  vec3 dd=vec3(abs(dr.x)<1e-4?(dr.x>=0.?1e-4:-1e-4):dr.x,abs(dr.y)<1e-4?(dr.y>=0.?1e-4:-1e-4):dr.y,dr.z);
+  vec3 tb=(bnd-o)/dd;float t=min(min(tb.x,tb.y),tb.z);vec3 p=o+dr*t;float fz=clamp(p.z/dep,0.,1.);
+  vec2 q=vec2((p.x+bx)/(2.*bx),(p.y-yLo)/(yHi-yLo));
+  float sit=step(.7,fract(sd*12.9)),hgt=mix(.34+.04*fract(sd*27.),.25,sit),ppl=on*step(.3,fract(sd*31.7))*det;
+  float pk=uTime/(6.+6.*fract(sd*8.3))+sd*5.,pk0=floor(pk),pkf=fract(pk),mov=smoothstep(.5,1.,pkf);   // Leute bleiben stehen, gehen weiter, verlassen manchmal das Fenster
+  float psx=mix(mix((h1(vec2(pk0,sd*13.))-.5)*2.4*bx,(h1(vec2(pk0+1.,sd*13.))-.5)*2.4*bx,mov),(fract(sd*19.)-.5)*bx*1.1+.012*sin(uTime*.6+sd*9.),sit);
+  if(t==tb.z){col=wall*.8;
+    if(IROOM==2){float sy=fract(q.y*3.);col=mix(col,vec3(.14),fil(abs(sy-.05)-.035,aa*3.)*det);
+      vec2 cell=floor(q*vec2(9.,3.)),cq=fract(q*vec2(9.,3.));float pr=step(.35,h1(cell+sd))*fil(sbx(cq,vec2(.5,.36),vec2(.3,.2)),aa*8.);col=mix(col,vec3(h1(cell+1.3),h1(cell+2.1),h1(cell+3.7))*1.1,pr*det);}
+    else{float cab=fil(sbx(q,vec2(fract(sd*3.1),.12),vec2(.12+.1*fract(sd*5.3),.1+.12*fract(sd*7.))),aa*3.);col=mix(col,vec3(.16,.13,.11),cab*.8);
+      float pic=step(.55,fract(sd*5.))*fil(sbx(q,vec2(.2+.6*fract(sd*11.),.68),vec2(.07,.08)),aa*3.);col=mix(col,vec3(.9,.4,.55),pic*det*.8);
+      col=mix(col,vec3(.4,.7,1.5),tv*fil(sbx(q,vec2(.5,.42),vec2(.13,.08)),aa*3.));}
+    col*=1.-ppl*.4*fil(psil(vec2(p.x-psx*1.12,p.y-yLo)/1.18,hgt),.05);}
+  else if(t==tb.x){col=wall*.66;col=mix(col,vec3(.2,.17,.14),step(.4,fract(sd*2.3))*fil(abs(q.y-.45)-.02,aa*3.)*det);}
+  else if(dr.y<0.){col=(IROOM==2?vec3(.45,.45,.43):vec3(.3,.24,.2))*(.55+.45*fz);col=mix(col,vec3(.45,.15,.2),float(IROOM!=2)*step(.5,fract(sd*4.1))*fil(sbx(vec2(p.x/bx,fz),vec2(0.,.5),vec2(.3,.22)),.08)*.55);}
+  else{col=wall*.9;float lamp=IROOM==2?fil(abs(fz-.5)-.04,.05)*fil(abs(p.x/bx)-.4,.06):1.-smoothstep(0.,.32,length(vec2(p.x/bx-(fract(sd*6.1)-.5)*.6,fz-.5)));col+=lamp*1.6;}
+  // Lichtkegel unter der Deckenleuchte.
+  float lampX=(fract(sd*6.1)-.5)*.6;
+  vec2 toLamp=vec2(p.x/bx-lampX,(1.-clamp(q.y,0.,1.))*.9);
+  col*=L*(.68+.55/(1.+3.*dot(toLamp,toLamp)))*(1.1-.6*fz);col=mix(L*wall*.6*(1.1-.4*fz),col,.3+.7*det);
+  // Ladentheke oder Sofa auf einer eigenen Ebene vor der Rückwand.
+  float furnishingT=dep*.62/dr.z;
+  if(furnishingT<t){
+    vec2 fp=o.xy+dr.xy*furnishingT;
+    vec2 local=vec2(fp.x/bx-(fract(sd*17.3)-.5)*.55,(fp.y-yLo)/Hh);
+    vec2 halfSize=IROOM==2?vec2(.68,.13):vec2(.43,.10);
+    float edge=footprint*1.8+.012;
+    float body=fil(sbx(local,vec2(0.,halfSize.y),halfSize),edge);
+    float rim=fil(sbx(local,vec2(0.,2.*halfSize.y),vec2(halfSize.x+.025,.014)),edge);
+    col=mix(col,L*vec3(.19,.13,.16),body);
+    col=mix(col,L*vec3(.52,.39,.31),rim);
+  }
+  float pm=0.;if(ppl>0.){float tp=dep*(.3+.28*fract(sd*5.9))/dr.z;if(tp<t){vec3 pp=o+dr*tp;pm=fil(psil(vec2(pp.x-psx,pp.y-yLo-(1.-sit)*step(.5,pkf)*step(pkf,.99)*.007*abs(sin(uTime*7.+sd*20.))),hgt),.007+aa*.5)*.9;}}
+  col=mix(col,L*wall*.55,.16+.18*fz);col=mix(col,L*.035+vec3(.004),pm*.9);
+  if(IROOM!=2){float cur=step(.66,fract(sd*53.)),bl=step(.7,fract(sd*13.))*(1.-cur);
+    if(cur>.5){float fo=.82+.18*sin(uw.x*W*95.+2.*sin(uw.y*4.+sd*9.));col=mix(col,L*wall*.75*fo*(1.-pm*.5),.74);}
+    float cut=1.-(.15+.55*fract(sd*17.));if(bl>.5&&uw.y>cut)col=L*(.34+.12*smoothstep(.25,.75,fract(uw.y*Hh*70.)));}
+  col=mix(distant,col,det);
+}
+vec3 R=reflect(V,N);
+float grazing=1.-clamp(abs(dot(V,N)),0.,1.);
+float fr=.055+.65*grazing*grazing*grazing*grazing;
+vec3 skyGlass=mix(uGlassHorizon,uGlassSky,smoothstep(-.15,.55,R.y));
+col=mix(col,skyGlass+vec3(.012,.015,.022),fr);
 diffuseColor.rgb=mix(vec3(.03,.03,.035),col,smoothstep(.3,.7,txw.r));}`;
+const glassHorizon={value:new THREE.Color()},glassSky={value:new THREE.Color()};
 const BOUNCE={a:{value:new THREE.Color()},b:{value:new THREE.Color()},s:{value:.5}};
 function popify(mat,{bounce=false,atlas=false,wuv=false,room=0}={}){
   mat.onBeforeCompile=sh=>{
@@ -333,9 +362,11 @@ mvPosition=modelViewMatrix*mvPosition;
 gl_Position=projectionMatrix*mvPosition;`);
     if(atlas)sh.vertexShader=sh.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n#ifdef USE_INSTANCING\nvMapUv=vMapUv*aAtl.zw+aAtl.xy;\n#endif');
     if(wuv)sh.fragmentShader=sh.fragmentShader.replace('#include <bumpmap_pars_fragment>','vec2 gWuv;\n'+THREE.ShaderChunk.bumpmap_pars_fragment.replaceAll('vBumpMapUv','gWuv')).replace('#include <roughnessmap_fragment>',THREE.ShaderChunk.roughnessmap_fragment.replaceAll('vRoughnessMapUv','gWuv'));
-    if(room)sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
+    if(room){
+      sh.uniforms.uGlassHorizon=glassHorizon;sh.uniforms.uGlassSky=glassSky;
+      sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
 varying vec3 vWp;varying vec3 vNw;varying vec2 vScl;flat varying float vSeed;
-uniform float uTime;
+uniform float uTime;uniform vec3 uGlassHorizon,uGlassSky;
 float h1(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453);}
 float sbx(vec2 p,vec2 c,vec2 h){vec2 d=abs(p-c)-h;return length(max(d,0.))+min(max(d.x,d.y),0.);}
 float fil(float d,float w){return 1.-smoothstep(-w,w,d);}
@@ -343,6 +374,7 @@ float psil(vec2 lp,float hg){float s=length(lp-vec2(0.,hg-.034))-.03;s=min(s,sbx
 #ifdef USE_MAP
 txw=texture2D(map,vMapUv);
 #endif`).replace('#include <color_fragment>',ROOM_GLSL.replaceAll('IROOM',String(room)));
+    }
     if(bounce||wuv){
       sh.uniforms.uBA=BOUNCE.a;sh.uniforms.uBB=BOUNCE.b;sh.uniforms.uBS=BOUNCE.s;
       sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
@@ -400,7 +432,7 @@ function stripGeo(pts,nrm){ // senkrechter Streifen entlang pts (y 0..1), für F
   for(let s=0;s<L;s++){const a=pts[s],b=pts[s+1],na=nrm(a),nb=nrm(b),ua=s/L,ub=(s+1)/L;
     const v=[[a,0,na,ua],[b,0,nb,ub],[b,1,nb,ub],[a,0,na,ua],[b,1,nb,ub],[a,1,na,ua]];
     const ex=b[0]-a[0],ez=b[1]-a[1];const flip=(-ez*na[0]+ex*na[1])<0;const ord=flip?[0,2,1,3,5,4]:[0,1,2,3,4,5];
-    for(const o of ord){const[p,y,n,u]=v[o];P.push(p[0],y,p[1]);NN.push(n[0],0,n[1]);UVa.push(u,y)}}
+    for(const o of ord){const[p,y,n,u]=v[o];P.push(p[0],y,p[1]);NN.push(n[0],0,n[1]);UVa.push(1-u,y)}}
   return geo(P,NN,UVa)}
 const winArcPts=[];for(let s=0;s<=8;s++){const a=(.1+.8*s/8)*Math.PI/2;winArcPts.push([Math.cos(a)*1.02,Math.sin(a)*1.02])}
 const WGEO_R=stripGeo(winArcPts,p=>nrm2(p[0],p[1]));
@@ -518,7 +550,11 @@ const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:
   vertexShader:`varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
   fragmentShader:`uniform vec3 uTop,uMid,uHor;uniform float uStars;varying vec3 vP;float h21(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 void main(){vec3 d=normalize(vP);float h=d.y;vec3 c=mix(uMid,uTop,smoothstep(.05,.65,h));c=mix(uHor,c,smoothstep(-.05,.28,h));if(h<0.)c=uHor*mix(1.,.4,clamp(-h*4.,0.,1.));
-c+=vec3(step(.9975,h21(floor(d*420.))))*smoothstep(.12,.5,h)*uStars*.9;gl_FragColor=vec4(c,1.);}`});
+vec2 starUV=d.xz/(1.+max(h,0.))*280.;
+float starSeed=h21(vec3(floor(starUV),1.));
+float width=clamp(max(fwidth(starUV.x),fwidth(starUV.y)),.025,.5);
+float star=1.-smoothstep(.08,.17+width,length(fract(starUV)-.5));
+c+=vec3(.78,.86,1.)*step(.993,starSeed)*star*smoothstep(.12,.5,h)*uStars;gl_FragColor=vec4(c,1.);}`});
 const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),skyMat);sky.renderOrder=-10;scene.add(sky);
 const skylineU={uSil:{value:new THREE.Color()}};
 function skylineRing(r,h,dim,rep){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,96,1,true),new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:false,side:THREE.DoubleSide,
@@ -538,10 +574,25 @@ void main(){vUv=textureMatrix*vec4(position,1.);vW=(modelMatrix*vec4(position,1.
 #include <logdepthbuf_pars_fragment>
 void main(){
 #include <logdepthbuf_fragment>
-vec2 w=vec2(sin(vW.x*2.1+uTime*1.1)+sin(vW.z*3.3-uTime*1.4)*.6+sin((vW.x+vW.z)*5.7+uTime*2.3)*.3,cos(vW.z*1.9+uTime*.9)+sin(vW.x*2.7-uTime*1.6)*.6+cos((vW.x-vW.z)*6.1-uTime*2.)*.3);
-w+=uRain*vec2(sin(vW.x*9.+uTime*3.)*sin(vW.z*8.-uTime*2.6),cos(vW.z*8.5-uTime*3.2)*cos(vW.x*7.-uTime*2.))*.12;
-vec4 uv=vUv;uv.xy+=w*.0055*uv.w;vec3 r=texture2DProj(tDiffuse,uv).rgb;vec3 col=uTint+r*.6;
-float dist=length(cameraPosition-vW);col=mix(col,uFogC,1.-exp(-uFogD*uFogD*dist*dist));gl_FragColor=vec4(col,1.);
+vec2 pos=vW.xz;
+vec2 w=vec2(sin(dot(pos,vec2(2.1,.7))+uTime),cos(dot(pos,vec2(-.6,1.9))+uTime*.9));
+w+=.42*vec2(sin(pos.y*3.3-uTime*1.4),sin(pos.x*2.7-uTime*1.6));
+vec2 cellUv=pos*2.4;
+float footprint=max(fwidth(cellUv.x),fwidth(cellUv.y));
+if(uRain>.0 && footprint<.22){
+  vec2 cell=floor(cellUv);
+  float seed=fract(dot(fract(cell*vec2(.1031,.11369)),vec2(17.13,31.71)));
+  vec2 delta=fract(cellUv)-(.32+.36*fract(seed*vec2(13.7,21.3)));
+  float radius=length(delta),age=fract(uTime*(.7+.4*seed)+seed);
+  float ring=1.-smoothstep(.012,.035+footprint,abs(radius-.28*age));
+  w+=delta/max(radius,.012)*ring*(1.-age)*(1.-smoothstep(.06,.22,footprint))*.48*uRain;
+}
+vec2 uv=clamp(vUv.xy/vUv.w+w*.0055,0.,1.);
+vec3 reflected=texture2D(tDiffuse,uv).rgb;
+vec3 eye=cameraPosition-vW;
+float grazing=1.-clamp(eye.y*inversesqrt(max(dot(eye,eye),.0001)),0.,1.);
+vec3 col=uTint+reflected*(.42+.51*grazing*grazing);
+col=mix(uFogC,col,exp(-uFogD*uFogD*dot(eye,eye)));gl_FragColor=vec4(col,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`};
@@ -860,9 +911,11 @@ const bloom=new UnrealBloomPass(new THREE.Vector2(256,256),.85,.55,.95);composer
 const tiltShader=()=>({uniforms:{tDiffuse:{value:null},uStep:{value:new THREE.Vector2()},uR:{value:.5},uBand:{value:.09},uAmt:{value:1}},
   vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
   fragmentShader:`uniform sampler2D tDiffuse;uniform vec2 uStep;uniform float uR,uBand,uAmt;varying vec2 vUv;
-void main(){float b=smoothstep(uBand,uBand+.42,abs(vUv.y-uR))*uAmt;vec2 s=uStep*b;vec4 c=texture2D(tDiffuse,vUv)*.1633;
-c+=(texture2D(tDiffuse,vUv+s)+texture2D(tDiffuse,vUv-s))*.1531;c+=(texture2D(tDiffuse,vUv+2.*s)+texture2D(tDiffuse,vUv-2.*s))*.12245;
-c+=(texture2D(tDiffuse,vUv+3.*s)+texture2D(tDiffuse,vUv-3.*s))*.0918;c+=(texture2D(tDiffuse,vUv+4.*s)+texture2D(tDiffuse,vUv-4.*s))*.051;gl_FragColor=c;}`});
+void main(){float b=smoothstep(uBand,uBand+.42,abs(vUv.y-uR))*uAmt;vec4 c=texture2D(tDiffuse,vUv);
+if(b>.001){vec2 s=uStep*b;
+c=c*.20+(texture2D(tDiffuse,vUv+1.36*s)+texture2D(tDiffuse,vUv-1.36*s))*.275
+       +(texture2D(tDiffuse,vUv+3.32*s)+texture2D(tDiffuse,vUv-3.32*s))*.125;}
+gl_FragColor=c;}`});
 const tiltH=new ShaderPass(tiltShader()),tiltV=new ShaderPass(tiltShader());composer.addPass(tiltH);composer.addPass(tiltV);
 let tiltOn=true,tiltR=.5;try{tiltOn=localStorage.getItem(LST)!=='0'}catch(e){}
 const fx=new ShaderPass({uniforms:{tDiffuse:{value:null},uTime:{value:0},uCA:{value:.4},uGrain:{value:.028},uScan:{value:0},uVig:{value:.55},uGlitch:{value:0},uSat:{value:1},uRes:{value:new THREE.Vector2(1,1)}},
@@ -882,7 +935,7 @@ const ATMOS=[
 const AP={};const COLK=['top','mid','hor','fog','hs','hg','mc','ba','bb','wt','rain'],NUMK=['fd','hi','mi','bl','bs','st'];
 const toAP=a=>{const o={};COLK.forEach(k=>o[k]=new THREE.Color(a[k]));NUMK.forEach(k=>o[k]=a[k]);return o};
 Object.assign(AP,toAP(ATMOS[0]));
-function applyAP(){skyMat.uniforms.uTop.value.copy(AP.top);skyMat.uniforms.uMid.value.copy(AP.mid);skyMat.uniforms.uHor.value.copy(AP.hor);skyMat.uniforms.uStars.value=AP.st;
+function applyAP(){glassHorizon.value.copy(AP.hor);glassSky.value.copy(AP.mid);skyMat.uniforms.uTop.value.copy(AP.top);skyMat.uniforms.uMid.value.copy(AP.mid);skyMat.uniforms.uHor.value.copy(AP.hor);skyMat.uniforms.uStars.value=AP.st;
   scene.fog.color.copy(AP.fog);scene.fog.density=AP.fd;hemi.color.copy(AP.hs);hemi.groundColor.copy(AP.hg);hemi.intensity=AP.hi;moon.color.copy(AP.mc);moon.intensity=AP.mi;
   bloom.strength=AP.bl;BOUNCE.a.value.copy(AP.ba);BOUNCE.b.value.copy(AP.bb);BOUNCE.s.value=AP.bs;
   const wu=water.material.uniforms;wu.uTint.value.copy(AP.wt);wu.uFogC.value.copy(AP.fog);wu.uFogD.value=AP.fd;waterLow.material.color.copy(AP.wt);
