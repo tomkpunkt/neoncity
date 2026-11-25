@@ -285,6 +285,61 @@ const ATL_V=[],ATL_H=[];
 for(let e=0;e<16;e++){ATL_V.push([(e*64+2)/1024,1-254/1024,60/1024,252/1024]);const x0=(e%4)*256,y0=256+((e/4)|0)*64;ATL_H.push([(x0+2)/1024,1-(y0+62)/1024,252/1024,60/1024])}
 // ============================================================ Material-Shader: Hüpfen beim Bauen, Neon-Streulicht, Welt-UVs
 // Innenraum hinter dem Fenster (Interior Mapping): Strahl vom Auge in einen Raum hinter der Scheibe, Wände, Boden, Decke mit Lampe, Möbel aus Zufall je Fenster
+// Acht hinterleuchtete Alltagsszenen. Der Atlas wird einmal beim Start gezeichnet.
+function makeResidentAtlas(){
+  const size=128,[canvas,ctx]=cv(size*4,size*2);
+  const shape=(points)=>{ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill()};
+  const limb=(points,width)=>{ctx.lineWidth=width;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke()};
+  function person(x,y,lean,seated,arms,hair){
+    ctx.save();ctx.translate(x,y);
+    const hip=seated?57:60;
+    // Schultern, Taille und Hüfte als zusammenhängende Kontur.
+    shape([[lean-7,29],[lean-3,25],[lean+4,26],[lean+8,31],[5,hip-8],[7,hip],[-7,hip],[-5,hip-9]]);
+    limb([[lean,28],[lean+1,21]],6);
+    ctx.beginPath();ctx.ellipse(lean+1,17,5.8,7.6,-.16,0,Math.PI*2);ctx.fill();
+    shape([[lean+5,15],[lean+8,19],[lean+5,20]]);
+    if(hair){ctx.beginPath();ctx.arc(lean-5,15,4,0,7);ctx.fill()}
+    for(const [elbow,hand] of arms)limb([[lean,31],elbow,hand],4.4);
+    const legs=seated?[[[17,59],[19,81],[25,81]],[[11,63],[8,81],[14,81]]]:[[[3,72],[7,85],[12,85]],[[-5,72],[-8,85],[-3,85]]];
+    for(const leg of legs)limb([[0,hip-2],...leg],6);
+    ctx.restore();
+  }
+  for(let pose=0;pose<8;pose++){
+    ctx.save();ctx.translate((pose%4)*size,(pose>>2)*size);ctx.scale(size/100,size/100);
+    ctx.fillStyle=ctx.strokeStyle='#fff';ctx.lineCap=ctx.lineJoin='round';
+    switch(pose){
+      case 0: // Telefon am Ohr
+        person(48,0,-2,false,[[[14,41],[5,18]],[[-12,46],[-9,57]]],true);break;
+      case 1: // Sessel und aufgeklappter Laptop
+        person(36,4,-5,true,[[[7,45],[23,46]],[[0,48],[18,48]]],false);
+        limb([[47,52],[65,52],[69,39]],2.7);limb([[20,42],[24,67],[49,67]],5);limb([[29,68],[26,86]],3);break;
+      case 2: // Buch auf Augenhöhe
+        person(43,0,1,false,[[[14,43],[22,33]],[[8,45],[15,34]]],true);
+        shape([[55,28],[62,30],[70,26],[68,38],[61,41],[55,38]]);break;
+      case 3: // Dehnen mit erhobenen Armen
+        person(47,4,2,false,[[[-9,18],[-15,2]],[[16,18],[19,1]]],false);break;
+      case 4: // Eine Pflanze gießen
+        person(33,0,6,false,[[[18,38],[28,37]],[[14,42],[24,40]]],true);
+        shape([[56,35],[68,36],[68,45],[55,44]]);limb([[65,41],[74,38]],3);
+        shape([[70,74],[85,74],[82,86],[73,86]]);limb([[77,74],[77,57],[70,52]],2.5);limb([[77,67],[85,58]],3);break;
+      case 5: // Zurückgelehnt auf dem Fenstersitz, ein Knie aufgestellt
+        ctx.beginPath();ctx.ellipse(27,39,6,7,-.4,0,7);ctx.fill();
+        shape([[23,44],[31,44],[37,54],[49,62],[50,69],[33,67],[26,57]]);
+        limb([[31,49],[39,57],[50,53]],4);
+        limb([[41,64],[59,48],[71,69],[78,69]],6);
+        limb([[42,66],[61,67],[77,77],[85,77]],5);
+        limb([[16,48],[22,72],[66,72]],4);break;
+      case 6: // Am Schreibtisch
+        person(30,5,4,true,[[[16,44],[34,42]],[[12,47],[28,44]]],true);
+        ctx.fillRect(48,51,40,3);ctx.fillRect(79,53,3,33);ctx.fillRect(66,34,17,11);ctx.fillRect(73,44,2,7);break;
+      case 7: // Unterwegs im Zimmer
+        person(49,0,3,false,[[[11,42],[19,37]],[[-9,42],[-14,53]]],false);break;
+    }
+    ctx.restore();
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+const residentAtlas={value:makeResidentAtlas()};
 const ROOM_GLSL=`{vec3 N=normalize(vNw),Tn=normalize(cross(vec3(0.,1.,0.),N)),V=normalize(vWp-cameraPosition);
 vec2 uw=vMapUv;
 float W=max(vScl.x,.05),Hh=max(vScl.y,.05),sd=floor(vSeed*4096.+.5)/4096.;
@@ -310,16 +365,17 @@ if(on>.5 && det>0.){
   vec3 dd=vec3(abs(dr.x)<1e-4?(dr.x>=0.?1e-4:-1e-4):dr.x,abs(dr.y)<1e-4?(dr.y>=0.?1e-4:-1e-4):dr.y,dr.z);
   vec3 tb=(bnd-o)/dd;float t=min(min(tb.x,tb.y),tb.z);vec3 p=o+dr*t;float fz=clamp(p.z/dep,0.,1.);
   vec2 q=vec2((p.x+bx)/(2.*bx),(p.y-yLo)/(yHi-yLo));
-  float sit=step(.7,fract(sd*12.9)),hgt=mix(.34+.04*fract(sd*27.),.25,sit),ppl=on*step(.3,fract(sd*31.7))*det;
-  float pk=uTime/(6.+6.*fract(sd*8.3))+sd*5.,pk0=floor(pk),pkf=fract(pk),mov=smoothstep(.5,1.,pkf);   // Leute bleiben stehen, gehen weiter, verlassen manchmal das Fenster
-  float psx=mix(mix((h1(vec2(pk0,sd*13.))-.5)*2.4*bx,(h1(vec2(pk0+1.,sd*13.))-.5)*2.4*bx,mov),(fract(sd*19.)-.5)*bx*1.1+.012*sin(uTime*.6+sd*9.),sit);
+  float pose=floor(fract(sd*39.73)*8.);
+  float ppl=step(.3,fract(sd*31.7))*det;
+  float psx=(fract(sd*19.)-.5)*bx*.75;
+  if(pose>6.5)psx+=sin(uTime*.37+sd*12.)*bx*.63;
   if(t==tb.z){col=wall*.8;
     if(IROOM==2){float sy=fract(q.y*3.);col=mix(col,vec3(.14),fil(abs(sy-.05)-.035,aa*3.)*det);
       vec2 cell=floor(q*vec2(9.,3.)),cq=fract(q*vec2(9.,3.));float pr=step(.35,h1(cell+sd))*fil(sbx(cq,vec2(.5,.36),vec2(.3,.2)),aa*8.);col=mix(col,vec3(h1(cell+1.3),h1(cell+2.1),h1(cell+3.7))*1.1,pr*det);}
     else{float cab=fil(sbx(q,vec2(fract(sd*3.1),.12),vec2(.12+.1*fract(sd*5.3),.1+.12*fract(sd*7.))),aa*3.);col=mix(col,vec3(.16,.13,.11),cab*.8);
       float pic=step(.55,fract(sd*5.))*fil(sbx(q,vec2(.2+.6*fract(sd*11.),.68),vec2(.07,.08)),aa*3.);col=mix(col,vec3(.9,.4,.55),pic*det*.8);
       col=mix(col,vec3(.4,.7,1.5),tv*fil(sbx(q,vec2(.5,.42),vec2(.13,.08)),aa*3.));}
-    col*=1.-ppl*.4*fil(psil(vec2(p.x-psx*1.12,p.y-yLo)/1.18,hgt),.05);}
+  }
   else if(t==tb.x){col=wall*.66;col=mix(col,vec3(.2,.17,.14),step(.4,fract(sd*2.3))*fil(abs(q.y-.45)-.02,aa*3.)*det);}
   else if(dr.y<0.){col=(IROOM==2?vec3(.45,.45,.43):vec3(.3,.24,.2))*(.55+.45*fz);col=mix(col,vec3(.45,.15,.2),float(IROOM!=2)*step(.5,fract(sd*4.1))*fil(sbx(vec2(p.x/bx,fz),vec2(0.,.5),vec2(.3,.22)),.08)*.55);}
   else{col=wall*.9;float lamp=IROOM==2?fil(abs(fz-.5)-.04,.05)*fil(abs(p.x/bx)-.4,.06):1.-smoothstep(0.,.32,length(vec2(p.x/bx-(fract(sd*6.1)-.5)*.6,fz-.5)));col+=lamp*1.6;}
@@ -339,10 +395,26 @@ if(on>.5 && det>0.){
     col=mix(col,L*vec3(.19,.13,.16),body);
     col=mix(col,L*vec3(.52,.39,.31),rim);
   }
-  float pm=0.;if(ppl>0.){float tp=dep*(.3+.28*fract(sd*5.9))/dr.z;if(tp<t){vec3 pp=o+dr*tp;pm=fil(psil(vec2(pp.x-psx,pp.y-yLo-(1.-sit)*step(.5,pkf)*step(pkf,.99)*.007*abs(sin(uTime*7.+sd*20.))),hgt),.007+aa*.5)*.9;}}
+  float pm=0.;
+  if(ppl>0.){
+    float tp=dep*(.24+.17*fract(sd*5.9))/dr.z;
+    if(tp<t){
+      vec2 point=o.xy+dr.xy*tp;
+      float size=clamp(Hh*1.24,.30,.56);
+      // Leicht verdeckte Beine, Oberkörper und Requisite oberhalb der Brüstung.
+      float feet=max(yLo,-.5*Hh-.055);
+      vec2 figure=(point-vec2(psx,feet))/size+vec2(.5,.10);
+      if(fract(sd*61.)>.5)figure.x=1.-figure.x;
+      vec2 tile=vec2(mod(pose,4.),1.-floor(pose/4.));
+      float lod=clamp(log2(max(1.,128.*max(pixel.x*W,pixel.y*Hh)/size)),0.,3.);
+      // Transparenter Rand verhindert Übergreifen in die nächste Pose.
+      vec2 uv=(tile+clamp(figure,.035,.965))/vec2(4.,2.);
+      if(all(greaterThan(figure,vec2(0.)))&&all(lessThan(figure,vec2(1.))))pm=textureLod(uResidents,uv,lod).a*det;
+    }
+  }
   col=mix(col,L*wall*.55,.16+.18*fz);col=mix(col,L*.035+vec3(.004),pm*.9);
   if(IROOM!=2){float cur=step(.66,fract(sd*53.)),bl=step(.7,fract(sd*13.))*(1.-cur);
-    if(cur>.5){float fo=.82+.18*sin(uw.x*W*95.+2.*sin(uw.y*4.+sd*9.));col=mix(col,L*wall*.75*fo*(1.-pm*.5),.74);}
+    if(cur>.5){float fo=.82+.18*sin(uw.x*W*95.+2.*sin(uw.y*4.+sd*9.));float opening=.14+.12*fract(sd*11.)+.055*sin(uw.y*3.);float drape=1.-smoothstep(opening-aa,opening+aa,min(uw.x,1.-uw.x));col=mix(col,L*wall*.55*fo,.84*drape);}
     float cut=1.-(.15+.55*fract(sd*17.));if(bl>.5&&uw.y>cut)col=L*(.34+.12*smoothstep(.25,.75,fract(uw.y*Hh*70.)));}
   col=mix(distant,col,det);
 }
@@ -374,14 +446,14 @@ gl_Position=projectionMatrix*mvPosition;`);
     if(atlas)sh.vertexShader=sh.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n#ifdef USE_INSTANCING\nvMapUv=vMapUv*aAtl.zw+aAtl.xy;\n#endif');
     if(wuv)sh.fragmentShader=sh.fragmentShader.replace('#include <bumpmap_pars_fragment>','vec2 gWuv;\n'+THREE.ShaderChunk.bumpmap_pars_fragment.replaceAll('vBumpMapUv','gWuv')).replace('#include <roughnessmap_fragment>',THREE.ShaderChunk.roughnessmap_fragment.replaceAll('vRoughnessMapUv','gWuv')).replace('#include <normal_fragment_begin>',THREE.ShaderChunk.normal_fragment_begin.replaceAll('vNormalMapUv','gWuv')).replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replaceAll('vNormalMapUv','gWuv'));
     if(room){
-      sh.uniforms.uGlassHorizon=glassHorizon;sh.uniforms.uGlassSky=glassSky;
+      sh.uniforms.uResidents=residentAtlas;sh.uniforms.uGlassHorizon=glassHorizon;sh.uniforms.uGlassSky=glassSky;
       sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
 varying vec3 vWp;varying vec3 vNw;varying vec2 vScl;flat varying float vSeed;
-uniform float uTime;uniform vec3 uGlassHorizon,uGlassSky;
+uniform float uTime;uniform sampler2D uResidents;uniform vec3 uGlassHorizon,uGlassSky;
 float h1(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453);}
 float sbx(vec2 p,vec2 c,vec2 h){vec2 d=abs(p-c)-h;return length(max(d,0.))+min(max(d.x,d.y),0.);}
 float fil(float d,float w){return 1.-smoothstep(-w,w,d);}
-float psil(vec2 lp,float hg){float s=length(lp-vec2(0.,hg-.034))-.03;s=min(s,sbx(lp,vec2(0.,(hg-.07)*.5),vec2(.044,(hg-.07)*.5))-.013);return min(s,sbx(lp,vec2(0.,hg-.07),vec2(.013,.02)));}`).replace('#include <map_fragment>',`vec4 txw=vec4(1.);
+`).replace('#include <map_fragment>',`vec4 txw=vec4(1.);
 #ifdef USE_MAP
 txw=texture2D(map,vMapUv);
 #endif`).replace('#include <color_fragment>',ROOM_GLSL.replaceAll('IROOM',String(room)));
@@ -682,9 +754,15 @@ function roadKind(i,j){const ax=roadAxis(i,j);if(!ax)return 0;   // wie roadAxis
 const widePartner=(i,j,k)=>(k===1?[1,3]:[0,2]).filter(d=>roadKind(i+DX[d],j+DZ[d])===k);
 function lamp(c,i,j,ci,conn){const curbs=[0,1,2,3].filter(d=>!conn[d]);if(!curbs.length||c.m||hash(i,j,14)>.42)return;const x=wx(i),z=wz(j),d=curbs[(hash(i,j,15)*curbs.length)|0],u=(hash(i,j,16)<.5?-1:1)*.3,px=x+DX[d]*.44+TX[d]*u,pz=z+DZ[d]*.44+TZ[d]*u;
   B.cyl.add(px,D+.45,pz,.03,.9,.03,0,DARK,ci);B.glow.add(px-DX[d]*.08,D+.9,pz-DZ[d]*.08,d%2?.06:.18,.03,d%2?.18:.06,0,hash(i,j,17)<.5?LAMP_A:LAMP_B,ci)}
+const streetMarks=new Map();
 function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.013,ax=roadKind(i,j),nbs=[0,1,2,3].map(d=>at(i+DX[d],j+DZ[d])),conn=nbs.map(isWalk);
   B.asph.add(x,D+.006,z,1,.012,1,0,[v,v,v],ci);
   for(let d=0;d<4;d++)if(!conn[d])B.dark.add(x+DX[d]*.44,D+.02,z+DZ[d]*.44,d%2?1:.12,.04,d%2?.12:1,0,CURB,ci);
+  const zebra=d=>{
+    streetMarks.set(ci,(streetMarks.get(ci)||0)|(1<<d));
+    const X=d%2===0;
+    for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}
+  };
   const dline=(x0,z0,x1,z1,col)=>{const vx=x1-x0,vz=z1-z0,L=Math.hypot(vx,vz),nx=-vz/L*.025,nz=vx/L*.025,r=Math.atan2(-vz,vx);for(const s of[-1,1])B.glow.add((x0+x1)/2+nx*s,top,(z0+z1)/2+nz*s,L,.004,.014,r,col,ci)};
   if(ax===5){const cb=curveBlock(i,j);if(cb.i0===i&&cb.j0===j){const cx=x+.5,cz=z+.5;for(const d of cb.arms)dline(cx,cz,cx+DX[d],cz+DZ[d],CENTER)}}   // Mittellinie biegt mit ab
   else if(ax===1||ax===2){const X=ax===1,runD=X?[0,2]:[1,3],sideD=X?[1,3]:[0,2],wide=widePartner(i,j,ax);
@@ -694,9 +772,13 @@ function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.01
     else if(wide.length){for(let s=-1;s<=1;s++){const o=s*.33;B.glow.add(x+(X?o:0),top,z+(X?0:o),X?.16:.02,.004,X?.02:.16,0,DASH,ci)}
       for(const d of wide)if(d<=1)for(const s of[-1,1])B.glow.add(x+DX[d]*.5+(X?0:s*.025),top,z+DZ[d]*.5+(X?s*.025:0),X?1:.014,.004,X?.014:1,0,CENTER,ci)}
     else B.glow.add(x,top,z,X?1:.024,.004,X?.024:1,0,LANE,ci);
-    for(const d of runD){if(roadKind(i+DX[d],j+DZ[d])!==3&&!isPlz(nbs[d]))continue;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
+    for(const d of runD){
+      const junction=roadKind(i+DX[d],j+DZ[d])===3;
+      const parkApproach=!wide.length&&d===runD[0]&&sideD.some(side=>isPk(nbs[side]));
+      if(junction||isPlz(nbs[d])||parkApproach)zebra(d);
+    }}
   else if(ax===4){let any=false;for(let d=0;d<4;d++){if(isRoad(nbs[d])){any=true;B.glow.add(x+DX[d]*.25,top,z+DZ[d]*.25,d%2?.024:.5,.004,d%2?.5:.024,0,LANE,ci)}
-      else if(isPlz(nbs[d])){const X=d%2===0;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
+      else if(isPlz(nbs[d]))zebra(d)}
     if(!any)B.glow.add(x,top,z,.06,.004,.06,0,LANE,ci)}
   lamp(c,i,j,ci,conn);
   if(!c.m&&hash(i,j,18)<.1)AUX.steam.push([x+(hash(i,j,19)-.5)*.4,D+.02,z+(hash(i,j,20)-.5)*.4])}
@@ -930,35 +1012,191 @@ function updCars(dt){const MB=carBody.instanceMatrix.array,MG=carGlow.instanceMa
     [[.17,.05,0,.02,.025,.03],[.17,-.05,0,.02,.025,.03],[-.17,.05,0,.02,.025,.03],[-.17,-.05,0,.02,.025,.03],[0,0,-.045,.28,.008,.1]].forEach(([lx,lz,ly,sx,sy,sz],k)=>{const q=P(lx,lz);setM(MG,(n*5+k)*16,q[0],y+ly,q[1],sx,sy,sz,ry)});
     for(const[k,lz]of[[0,.05],[1,-.05]]){const q=P(-.17-.7,lz);setM(MT,(n*2+k)*16,q[0],y,q[1],1.4,.018,1,ry)}});
   carBody.instanceMatrix.needsUpdate=carGlow.instanceMatrix.needsUpdate=carTrail.instanceMatrix.needsUpdate=true}
-function nextOn(a,prev,ok){const i=a%N,j=(a/N)|0,o=[];for(let d=0;d<4;d++){const ni=i+DX[d],nj=j+DZ[d];if(inb(ni,nj)&&ok(G[ix(ni,nj)]))o.push(ix(ni,nj))}if(!o.length)return a;let f=o.filter(n=>n!==prev);if(!f.length)f=o;return f[(Math.random()*f.length)|0]}
+// Vier Gehwegecken je Feld. Querungen liegen genau auf den gemalten Streifen.
+const walkGraph=new Map(),crossings=new Map(),roadLinks=new Map();
+const cornerX=[1,-1,-1,1],cornerZ=[1,1,-1,-1];
+const oneOf=items=>items[Math.floor(Math.random()*items.length)];
+function neighbor(cell,d){
+  const i=cell%N+DX[d],j=Math.floor(cell/N)+DZ[d];
+  return inb(i,j)?ix(i,j):-1;
+}
+function buildStreetGraph(){
+  walkGraph.clear();crossings.clear();roadLinks.clear();
+  for(let cell=0;cell<G.length;cell++){
+    if(!isWalk(G[cell])&&!isPk(G[cell]))continue;
+    const roads=[],i=cell%N,j=Math.floor(cell/N),axis=roadKind(i,j);
+    for(let k=0;k<4;k++){
+      const adjacent=neighbor(cell,k);
+      if(isRoad(G[adjacent])){
+        // Parallele Felder einer breiten Geraden bilden keine Einmündung.
+        const sideways=(axis===1&&k%2===1)||(axis===2&&k%2===0);
+        if(!sideways||roadKind(i+DX[k],j+DZ[k])!==axis)roads.push(k);
+      }
+      walkGraph.set(cell*4+k,{x:wx(cell%N)+cornerX[k]*.39,z:wz(Math.floor(cell/N))+cornerZ[k]*.39,links:[],goal:isPk(G[cell])||isPlz(G[cell])});
+    }
+    if(isRoad(G[cell])&&roads.length)roadLinks.set(cell,roads);
+  }
+  function link(a,b,gate){
+    walkGraph.get(a).links.push({to:b,gate});walkGraph.get(b).links.push({to:a,gate});
+  }
+  for(const id of walkGraph.keys()){
+    const cell=id>>2,d=id%4,other=neighbor(cell,d);
+    const first=cell*4+(d+3)%4,second=cell*4+d;
+    const marked=(streetMarks.get(cell)||0)&(1<<d);
+    let gate=null;
+    if(marked){
+      gate=crossings.get(cell);
+      if(!gate){gate={cell,wait:false,active:0,phase:'cars',time:0};crossings.set(cell,gate)}
+    }
+    if(marked || !isRoad(G[cell]) || !isRoad(G[other]))link(first,second,gate);
+    if(G[other]?.m&1){walkGraph.get(first).goal=true;walkGraph.get(second).goal=true}
+    if(d>1||!walkGraph.has(other*4))continue;
+    const across=d===0?[2,1]:[3,2];
+    link(first,other*4+across[0],null);link(second,other*4+across[1],null);
+  }
+}
+function walkRoute(start){
+  const parent=new Map([[start,null]]),queue=[start],goals=[];
+  for(let i=0;i<queue.length;i++){
+    const id=queue[i],node=walkGraph.get(id);
+    if(i&&node.goal)goals.push(id);
+    for(const edge of node.links)if(!parent.has(edge.to)){
+      parent.set(edge.to,{from:id,edge});queue.push(edge.to);
+    }
+  }
+  let id=goals.length?oneOf(goals):queue.length>1?queue[1+Math.floor(Math.random()*(queue.length-1))]:start;
+  const route=[];
+  while(id!==start){const step=parent.get(id);route.push(step.edge);id=step.from}
+  return route;
+}
 // Autos auf der Straße (Rechtsverkehr)
 const GCMAX=70,gcars=[];
 const gcBody=new THREE.InstancedMesh(GEO.box,new THREE.MeshStandardMaterial({roughness:.3,metalness:.7,envMapIntensity:1.2}),GCMAX*2),gcGlow=new THREE.InstancedMesh(GEO.box,new THREE.MeshBasicMaterial(),GCMAX*4);
 for(const m of[gcBody,gcGlow]){m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.count=0;scene.add(m)}
 const GCC=[[.03,.03,.04],[.3,.04,.06],[.04,.08,.24],[.22,.22,.24],[.32,.24,.03]];
 for(let n=0;n<GCMAX;n++){gcBody.setColorAt(n*2,tc.setRGB(...GCC[n%5]));gcBody.setColorAt(n*2+1,tc.setRGB(.02,.03,.05));[[3,3,2.6],[3,3,2.6],[3,.1,.08],[3,.1,.08]].forEach((c,k)=>gcGlow.setColorAt(n*4+k,tc.setRGB(...c)))}
-function rebuildGCars(){const rc=[];G.forEach((c,n)=>{if(isRoad(c))rc.push(n)});const want=Math.min(GCMAX,Math.round(rc.length*.45));
-  for(let n=gcars.length-1;n>=0;n--)if(!isRoad(G[gcars[n].a])||!isRoad(G[gcars[n].b]))gcars.splice(n,1);
-  while(gcars.length<want&&rc.length){const a=rc[(Math.random()*rc.length)|0];gcars.push({a,b:nextOn(a,-1,isRoad),prev:-1,t:Math.random(),sp:.7+Math.random()*.5})}
-  if(gcars.length>want)gcars.length=want}
+function exitDir(cell,inDir){
+  const options=roadLinks.get(cell).filter(d=>d!==(inDir+2)%4);
+  return options.length?oneOf(options):(inDir+2)%4;
+}
+function rebuildGCars(){
+  for(let i=gcars.length-1;i>=0;i--){
+    const car=gcars[i],links=roadLinks.get(car.cell);
+    if(!links?.includes((car.entry+2)%4)||!links.includes(car.exit))gcars.splice(i,1);
+  }
+  const cells=Array.from(roadLinks.keys()),want=Math.min(GCMAX,Math.round(cells.length*.45));
+  if(gcars.length>want)gcars.length=want;
+  const occupied=new Set(gcars.map(car=>car.cell));
+  for(let i=cells.length-1;i>=0&&gcars.length<want;i--){
+    const j=Math.floor(Math.random()*(i+1)),cell=cells[j];cells[j]=cells[i];
+    if(occupied.has(cell)||crossings.get(cell)?.active)continue;
+    const entry=(oneOf(roadLinks.get(cell))+2)%4;
+    gcars.push({cell,entry,exit:exitDir(cell,entry),t:.45,speed:0,cruise:.65+Math.random()*.35});
+  }
+}
+// Kubische Kurve zwischen Spurenden. Die Tangenten passen am Feldrand zusammen.
+function carPose(car){
+  const a=car.entry,b=car.exit,t=car.t,u=1-t;
+  const ax=-.5*DX[a]-.2*DZ[a],az=-.5*DZ[a]+.2*DX[a];
+  const bx=.5*DX[b]-.2*DZ[b],bz=.5*DZ[b]+.2*DX[b];
+  const handle=a===(b+2)%4?.51:1/3;
+  const cx=ax+handle*DX[a],cz=az+handle*DZ[a],ex=bx-handle*DX[b],ez=bz-handle*DZ[b];
+  const x=wx(car.cell%N)+u*u*u*ax+3*u*u*t*cx+3*u*t*t*ex+t*t*t*bx;
+  const z=wz(Math.floor(car.cell/N))+u*u*u*az+3*u*u*t*cz+3*u*t*t*ez+t*t*t*bz;
+  return [x,z,Math.atan2(-(u*u*(cz-az)+2*u*t*(ez-cz)+t*t*(bz-ez)),u*u*(cx-ax)+2*u*t*(ex-cx)+t*t*(bx-ex))];
+}
+function stepTraffic(dt){
+  const occupancy=new Map(),claims=new Map();
+  for(const car of gcars){
+    if(!occupancy.has(car.cell))occupancy.set(car.cell,[]);
+    occupancy.get(car.cell).push(car);
+  }
+  for(const gate of crossings.values()){
+    gate.time+=dt;
+    if(gate.phase==='cars'&&gate.wait&&gate.time>1.8){gate.phase='drain';gate.time=0}
+    if(gate.phase==='drain'&&!occupancy.has(gate.cell)){gate.phase='walk';gate.time=0}
+    if((gate.phase==='walk'&&gate.time>1.7&&!gate.active)||(gate.phase==='drain'&&gate.time>5)){
+      gate.phase='cars';gate.time=0;
+    }
+    gate.wait=false;
+  }
+  for(const car of gcars){
+    const next=neighbor(car.cell,car.exit),gate=crossings.get(next);
+    let gap=Infinity;
+    for(const lead of occupancy.get(car.cell)||[]){
+      if(lead.t>car.t&&(lead.entry===car.entry||lead.exit===car.exit))gap=Math.min(gap,lead.t-car.t-.37);
+    }
+    for(const lead of occupancy.get(next)||[]){
+      if(lead.entry===car.exit)gap=Math.min(gap,1-car.t+lead.t-.37);
+    }
+    // Pro Einmündung nur einen neuen Wagen in den Konfliktbereich lassen.
+    // Wer eine Kreuzung bereits befährt, darf sie immer räumen.
+    if(roadLinks.get(next).length>=3&&roadLinks.get(car.cell).length<3&&car.t>.32){
+      const blocking=(occupancy.get(next)||[]).some(other=>other.t<.85);
+      if(blocking||claims.has(next))gap=Math.min(gap,.76-car.t);
+      else claims.set(next,car);
+    }
+    if(gate&&gate.phase!=='cars')gap=Math.min(gap,.75-car.t);
+    const target=Math.min(car.cruise*(car.entry===car.exit?1:.76),Math.sqrt(2*1.5*Math.max(0,gap)),Math.max(0,gap)*2.8);
+    car.braking=target<car.speed-.03||target<.12;
+    car.speed+=Math.max(-1.5*dt,Math.min(.65*dt,target-car.speed));
+    car.t+=Math.min(car.speed*dt,Math.max(0,gap));
+    if(car.t>=1){
+      const old=occupancy.get(car.cell);old.splice(old.indexOf(car),1);
+      car.t-=1;car.cell=next;car.entry=car.exit;car.exit=exitDir(next,car.entry);
+      if(!occupancy.has(next))occupancy.set(next,[]);
+      occupancy.get(next).push(car);
+    }
+  }
+}
 function updGCars(dt){const MB=gcBody.instanceMatrix.array,MG=gcGlow.instanceMatrix.array;
-  gcars.forEach((p,n)=>{p.t+=dt*p.sp;if(p.t>=1){p.t-=1;p.prev=p.a;p.a=p.b;p.b=nextOn(p.a,p.prev,isRoad)}
-    const ax=wx(p.a%N),az=wz((p.a/N)|0),bx=wx(p.b%N),bz=wz((p.b/N)|0),dx=bx-ax,dz=bz-az,l=Math.hypot(dx,dz),fx=l>.5?dx/l:1,fz=l>.5?dz/l:0,x=ax+dx*p.t-fz*.2,z=az+dz*p.t+fx*.2,ry=Math.atan2(-fz,fx),cs=Math.cos(ry),sn=Math.sin(ry);
+  stepTraffic(dt);
+  gcars.forEach((p,n)=>{
+    const [x,z,ry]=carPose(p),cs=Math.cos(ry),sn=Math.sin(ry);
     const P=(lx,lz)=>[x+cs*lx+sn*lz,z-sn*lx+cs*lz];
     setM(MB,n*32,x,D+.055,z,.26,.055,.12,ry);let q=P(-.02,0);setM(MB,n*32+16,q[0],D+.1,q[1],.13,.04,.1,ry);
-    [[.13,.04],[.13,-.04],[-.13,.04],[-.13,-.04]].forEach(([lx,lz],k)=>{const r=P(lx,lz);setM(MG,(n*4+k)*16,r[0],D+.055,r[1],.015,.02,.025,ry)})});
+    [[.13,.04],[.13,-.04],[-.13,.04],[-.13,-.04]].forEach(([lx,lz],k)=>{const r=P(lx,lz);const brake=k>=2&&p.braking;setM(MG,(n*4+k)*16,r[0],D+.055,r[1],.015,brake?.035:.02,brake?.045:.025,ry)})});
   gcBody.count=gcars.length*2;gcGlow.count=gcars.length*4;gcBody.instanceMatrix.needsUpdate=gcGlow.instanceMatrix.needsUpdate=true}
 const PMAX=180,peds=[];
 const pedBody=new THREE.InstancedMesh(GEO.box,new THREE.MeshLambertMaterial({color:0x1c1c26}),PMAX),pedUmb=new THREE.InstancedMesh(new THREE.ConeGeometry(1,.45,8),new THREE.MeshBasicMaterial(),PMAX);
 for(const m of[pedBody,pedUmb]){m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m)}
 for(let n=0;n<PMAX;n++)pedUmb.setColorAt(n,tc.setRGB(...mul(PG[n%8],1.25)));
-function rebuildPeds(){const sc=[];G.forEach((c,n)=>{if(isWalk(c))sc.push(n)});const want=Math.min(PMAX,Math.round(sc.length*1.3));
-  for(let n=peds.length-1;n>=0;n--)if(!isWalk(G[peds[n].a])||!isWalk(G[peds[n].b]))peds.splice(n,1);
-  while(peds.length<want&&sc.length){const a=sc[(Math.random()*sc.length)|0];peds.push({a,b:nextOn(a,-1,isWalk),prev:-1,t:Math.random(),sp:.22+Math.random()*.25,off:(Math.random()<.5?-1:1)*(.36+Math.random()*.06),ph:Math.random()*6})}
-  if(peds.length>want)peds.length=want}
+function rebuildPeds(){
+  const nodes=Array.from(walkGraph.keys()).filter(id=>walkGraph.get(id).links.length);
+  for(let i=peds.length-1;i>=0;i--){
+    const p=peds[i],node=walkGraph.get(p.node);
+    if(!node?.links.length){peds.splice(i,1);continue}
+    p.route=[];p.edge=node.links.find(e=>e.to===p.edge?.to&&!!e.gate===!!p.edge.gate)||null;
+    if(!p.edge)p.t=0;
+    if(p.edge?.gate){p.edge.gate.active++;p.edge.gate.phase='walk'}
+  }
+  const want=Math.min(PMAX,Math.round(nodes.length*.27));
+  while(peds.length<want)peds.push({node:oneOf(nodes),edge:null,route:[],t:0,rest:Math.random()*3,speed:.25+Math.random()*.17,ph:Math.random()*6});
+  while(peds.length>want){const p=peds.pop();if(p.edge?.gate)p.edge.gate.active--}
+}
+function advancePed(p,dt){
+  if(p.rest>0){p.rest-=dt;return}
+  if(!p.edge){
+    if(!p.route.length)p.route=walkRoute(p.node);
+    const next=p.route[p.route.length-1];
+    if(!next){p.rest=2;return}
+    if(next.gate&&(next.gate.phase!=='walk'||next.gate.time>1.7)){next.gate.wait=true;return}
+    p.edge=p.route.pop();p.t=0;
+    if(p.edge.gate)p.edge.gate.active++;
+  }
+  const a=walkGraph.get(p.node),b=walkGraph.get(p.edge.to);
+  p.t+=dt*p.speed/Math.hypot(a.x-b.x,a.z-b.z);
+  if(p.t>=1){
+    if(p.edge.gate)p.edge.gate.active--;
+    p.node=p.edge.to;p.edge=null;p.t=0;
+    if(!p.route.length)p.rest=1.5+Math.random()*4;
+  }
+}
 function updPeds(dt){const MB=pedBody.instanceMatrix.array,MU=pedUmb.instanceMatrix.array;
-  peds.forEach((p,n)=>{p.t+=dt*p.sp;if(p.t>=1){p.t-=1;p.prev=p.a;p.a=p.b;p.b=nextOn(p.a,p.prev,isWalk)}
-    const ax=wx(p.a%N),az=wz((p.a/N)|0),bx=wx(p.b%N),bz=wz((p.b/N)|0),dx=bx-ax,dz=bz-az,l=Math.hypot(dx,dz)||1,x=ax+dx*p.t+(-dz/l)*p.off*(l>.5?1:0),z=az+dz*p.t+(dx/l)*p.off*(l>.5?1:0),bob=Math.abs(Math.sin(T*9+p.ph))*.008;
+  peds.forEach((p,n)=>{
+    advancePed(p,dt);
+    const a=walkGraph.get(p.node),b=p.edge?walkGraph.get(p.edge.to):a;
+    const x=a.x+(b.x-a.x)*p.t,z=a.z+(b.z-a.z)*p.t,bob=p.edge?Math.abs(Math.sin(T*9+p.ph))*.008:0;
     setM(MB,n*16,x,D+.065+bob,z,.035,.1,.035,0);setM(MU,n*16,x,D+.16+bob,z,rainOn?.075:0,rainOn?.04:0,rainOn?.075:0,0)});
   pedBody.count=pedUmb.count=peds.length;pedBody.instanceMatrix.needsUpdate=pedUmb.instanceMatrix.needsUpdate=true}
 // Luftschiff mit Werbung
@@ -1283,7 +1521,7 @@ $('#pms').onclick=e=>{const b=e.target.closest('.st');if(b)setPullMode(b.dataset
 $('#gds').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.ground=+b.dataset.g;press('#gds .st','g',state.ground);sfx('ui')};
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200)}
 function stats(){$('#stat').textContent=`${STATS.floors} Etagen · höchster Turm ${STATS.tallest}`;$('#dist').textContent=district}
-function rebuild(){buildAll();rebuildAux();updLanes();rebuildPeds();rebuildGCars();stats()}
+function rebuild(){streetMarks.clear();buildAll();buildStreetGraph();rebuildAux();updLanes();rebuildPeds();rebuildGCars();stats()}
 let glitchV=0;const glitch=v=>{glitchV=Math.max(glitchV,v)};
 const hintEl=$('#hint');let hintN=0;hintEl.textContent=coarse?'Ein Finger baut und zieht Flächen · zwei Finger drehen und zoomen · lange drücken reißt ab':'Linke Maustaste baut und zieht · rechte dreht · Rad zoomt · WASD schiebt · Q/E dreht';
 function hintStep(){if(++hintN===4)hintEl.style.opacity='0'}
