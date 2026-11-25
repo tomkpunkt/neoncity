@@ -653,16 +653,37 @@ function deck(c,i,j,ci){const x=wx(i),z=wz(j),v=.9+hash(i,j,5)*.2;B.deck.add(x,(
     if(!c.m&&hash(i,j,d,6)<.3){const u=(hash(i,j,d,7)-.5)*.7;B.cyl.add(x+DX[d]*.42+TX[d]*u,D+.04,z+DZ[d]*.42+TZ[d]*u,.05,.08,.05,0,DARK,ci)}}}
 // Straßen: 1 gerade in x, 2 gerade in z, 3 Kreuzung, 4 Ende oder Kurve. Zwei gerade Felder nebeneinander = breite Straße
 function roadAxis(i,j){const c=at(i,j);if(!isRoad(c))return 0;const cn=[0,1,2,3].map(d=>isRoad(at(i+DX[d],j+DZ[d])));const rx=cn[0]&&cn[2],rz=cn[1]&&cn[3];return rx&&!rz?1:rz&&!rx?2:rx&&rz?3:4}
+// Breite Straßen sauber erkennen: Kurvenblock 2×2, T-Einmündung über beide Spuren, breites Ende
+const rd=(i,j)=>isRoad(at(i,j)),runs=(i,j,X)=>X?(rd(i+1,j)||rd(i-1,j)):(rd(i,j+1)||rd(i,j-1));
+function curveBlock(i,j){for(const[a,b]of[[0,0],[-1,0],[0,-1],[-1,-1]]){const i0=i+a,j0=j+b;if(!(rd(i0,j0)&&rd(i0+1,j0)&&rd(i0,j0+1)&&rd(i0+1,j0+1)))continue;
+    const sd=[[[i0+2,j0],[i0+2,j0+1]],[[i0,j0+2],[i0+1,j0+2]],[[i0-1,j0],[i0-1,j0+1]],[[i0,j0-1],[i0+1,j0-1]]].map(c=>c.filter(([p,q])=>rd(p,q)).length);
+    const full=[0,1,2,3].filter(d=>sd[d]===2);if(full.length===2&&sd.filter(v=>v===0).length===2&&(full[0]+full[1])%2===1)return{i0,j0,arms:full}}
+  return null}
+function roadKind(i,j){const ax=roadAxis(i,j);if(!ax)return 0;   // wie roadAxis, dazu 5 = Feld in einer breiten Kurve
+  if(curveBlock(i,j))return 5;
+  if(ax===1||ax===2){const X=ax===1;for(const d of X?[1,3]:[0,2]){const pi=i+DX[d],pj=j+DZ[d],bi=pi+DX[d],bj=pj+DZ[d];   // Gegenspur einer T-Einmündung gehört zur Kreuzung
+      if(roadAxis(pi,pj)===3&&runs(pi,pj,X)&&rd(bi,bj)&&runs(bi,bj,!X)&&!(X?rd(bi+1,bj)&&rd(bi-1,bj):rd(bi,bj+1)&&rd(bi,bj-1)))return 3
+      if(rd(pi,pj)&&rd(bi,bj)&&!(X?rd(pi+1,pj)&&rd(pi-1,pj):rd(pi,pj+1)&&rd(pi,pj-1)))for(const e of X?[0,2]:[1,3]){const qi=pi+DX[e],qj=pj+DZ[e];   // breiter Abzweig mündet hier
+        if(rd(qi,qj)&&rd(qi+DX[d],qj+DZ[d]))return 3}}}
+  if(ax===4)for(const X of[true,false]){const rn=(X?[0,2]:[1,3]).filter(d=>rd(i+DX[d],j+DZ[d])),sn=(X?[1,3]:[0,2]).filter(d=>rd(i+DX[d],j+DZ[d]));   // breites Ende
+    if(rn.length===1&&sn.length===1&&rd(i+DX[sn[0]]+DX[rn[0]],j+DZ[sn[0]]+DZ[rn[0]]))return X?1:2}
+  return ax}
+const widePartner=(i,j,k)=>(k===1?[1,3]:[0,2]).filter(d=>roadKind(i+DX[d],j+DZ[d])===k);
 function lamp(c,i,j,ci,conn){const curbs=[0,1,2,3].filter(d=>!conn[d]);if(!curbs.length||c.m||hash(i,j,14)>.42)return;const x=wx(i),z=wz(j),d=curbs[(hash(i,j,15)*curbs.length)|0],u=(hash(i,j,16)<.5?-1:1)*.3,px=x+DX[d]*.44+TX[d]*u,pz=z+DZ[d]*.44+TZ[d]*u;
   B.cyl.add(px,D+.45,pz,.03,.9,.03,0,DARK,ci);B.glow.add(px-DX[d]*.08,D+.9,pz-DZ[d]*.08,d%2?.06:.18,.03,d%2?.18:.06,0,hash(i,j,17)<.5?LAMP_A:LAMP_B,ci)}
-function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.013,ax=roadAxis(i,j),nbs=[0,1,2,3].map(d=>at(i+DX[d],j+DZ[d])),conn=nbs.map(isWalk);
+function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.013,ax=roadKind(i,j),nbs=[0,1,2,3].map(d=>at(i+DX[d],j+DZ[d])),conn=nbs.map(isWalk);
   B.asph.add(x,D+.006,z,1,.012,1,0,[v,v,v],ci);
   for(let d=0;d<4;d++)if(!conn[d])B.dark.add(x+DX[d]*.44,D+.02,z+DZ[d]*.44,d%2?1:.12,.04,d%2?.12:1,0,CURB,ci);
-  if(ax===1||ax===2){const X=ax===1,runD=X?[0,2]:[1,3],sideD=X?[1,3]:[0,2],wide=sideD.filter(d=>roadAxis(i+DX[d],j+DZ[d])===ax);
-    if(wide.length){for(let s=-1;s<=1;s++){const o=s*.33;B.glow.add(x+(X?o:0),top,z+(X?0:o),X?.16:.02,.004,X?.02:.16,0,DASH,ci)}
+  const dline=(x0,z0,x1,z1,col)=>{const vx=x1-x0,vz=z1-z0,L=Math.hypot(vx,vz),nx=-vz/L*.025,nz=vx/L*.025,r=Math.atan2(-vz,vx);for(const s of[-1,1])B.glow.add((x0+x1)/2+nx*s,top,(z0+z1)/2+nz*s,L,.004,.014,r,col,ci)};
+  if(ax===5){const cb=curveBlock(i,j);if(cb.i0===i&&cb.j0===j){const cx=x+.5,cz=z+.5;for(const d of cb.arms)dline(cx,cz,cx+DX[d],cz+DZ[d],CENTER)}}   // Mittellinie biegt mit ab
+  else if(ax===1||ax===2){const X=ax===1,runD=X?[0,2]:[1,3],sideD=X?[1,3]:[0,2],wide=widePartner(i,j,ax);
+    const taper=wide.length?null:runD.map(d=>{const ni=i+DX[d],nj=j+DZ[d];if(roadKind(ni,nj)!==ax)return null;const w=widePartner(ni,nj,ax);return w.length===1?[d,w[0]]:null}).find(t=>t);
+    if(taper){const[d,dp]=taper,e=X?DX[d]:DZ[d],sp=X?DZ[dp]:DX[dp];   // breit wird schmal: Mittellinie läuft schräg zur Mitte
+      if(X)dline(x+e*.5,z+sp*.5,x-e*.5,z,CENTER);else dline(x+sp*.5,z+e*.5,x,z-e*.5,CENTER)}
+    else if(wide.length){for(let s=-1;s<=1;s++){const o=s*.33;B.glow.add(x+(X?o:0),top,z+(X?0:o),X?.16:.02,.004,X?.02:.16,0,DASH,ci)}
       for(const d of wide)if(d<=1)for(const s of[-1,1])B.glow.add(x+DX[d]*.5+(X?0:s*.025),top,z+DZ[d]*.5+(X?s*.025:0),X?1:.014,.004,X?.014:1,0,CENTER,ci)}
     else B.glow.add(x,top,z,X?1:.024,.004,X?.024:1,0,LANE,ci);
-    for(const d of runD){if(roadAxis(i+DX[d],j+DZ[d])!==3&&!isPlz(nbs[d]))continue;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
+    for(const d of runD){if(roadKind(i+DX[d],j+DZ[d])!==3&&!isPlz(nbs[d]))continue;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
   else if(ax===4){let any=false;for(let d=0;d<4;d++){if(isRoad(nbs[d])){any=true;B.glow.add(x+DX[d]*.25,top,z+DZ[d]*.25,d%2?.024:.5,.004,d%2?.5:.024,0,LANE,ci)}
       else if(isPlz(nbs[d])){const X=d%2===0;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
     if(!any)B.glow.add(x,top,z,.06,.004,.06,0,LANE,ci)}
@@ -1314,7 +1335,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.val
   if(!fpsDone){fpsT+=dt;if(fpsT>2){fpsN++;if(fpsT>6){fpsDone=true;const fps=fpsN/4;if(fps<24&&Q&&!qManual){setQuality(0,false);toast('Effekte reduziert, damit alles flüssig läuft')}}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0';setTimeout(()=>l.remove(),900)});
-window.NEON={idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
+window.NEON={idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
 <script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent='three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.';}},15000);</script>

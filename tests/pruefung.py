@@ -234,6 +234,19 @@ def desktop(p):
     ax = pg.evaluate(LEER + """;(()=>{const G=NEON.G;for(let i=2;i<18;i++){G[9*20+i]={g:1,m:0,s:0,c:0,sg:[]};G[10*20+i]={g:1,m:0,s:0,c:0,sg:[]}}G[11*20+6]={g:3,m:0,s:0,c:0,sg:[]};NEON.rebuild();return NEON.roadAxis(6,10)})()""")
     pruefe('Straße neben einem Platz bleibt gerade (keine falsche Kreuzung)', ax == 1, f'Einordnung {ax}')
 
+    # Breite Straßen: T-Einmündung über beide Spuren, Kurve, Ende, Abzweig am Ende
+    STR = "NEON.G=Array.from({length:400},()=>({g:0,m:0,s:0,c:0,sg:[]}));const S=(i,j)=>NEON.G[j*20+i]={g:1,m:0,s:0,c:0,sg:[]};"
+    def art(bau, frage):
+        return pg.evaluate(f"(()=>{{{STR}{bau};NEON.rebuild();return {frage}}})()")
+    t = art("for(let i=0;i<9;i++){S(i,2);S(i,3)}for(let j=4;j<8;j++)S(3,j)", "[NEON.roadKind(3,3),NEON.roadKind(3,2),NEON.roadKind(5,2)]")
+    pruefe('Breite Straße: T-Einmündung gilt für beide Spuren', t == [3, 3, 1], str(t))
+    k = art("for(let i=2;i<9;i++){S(i,2);S(i,3)}for(let j=4;j<9;j++){S(7,j);S(8,j)}", "[7,8].flatMap(i=>[2,3].map(j=>NEON.roadKind(i,j)))")
+    pruefe('Breite Kurve: kein Kreuzungsfeld', k == [5, 5, 5, 5], str(k))
+    e = art("for(let i=2;i<9;i++){S(i,5);S(i,6)}", "[NEON.roadKind(2,5),NEON.roadKind(8,6)]")
+    pruefe('Ende einer breiten Straße bleibt gerade', e == [1, 1], str(e))
+    h = art("for(let i=10;i<18;i++)S(i,10);for(let j=11;j<16;j++){S(15,j);S(16,j)}", "[NEON.roadKind(15,10),NEON.roadKind(16,10)]")
+    pruefe('Schmale Querstraße am Ende einer breiten: Kreuzung über beide Spuren', h == [3, 3], str(h))
+
     # Abriss-Rechteck schneidet auf Höhe 2
     erg = pg.evaluate("""(()=>{NEON.generate(7);NEON.rebuild();NEON.rectPlan({tool:'erase',i0:0,j0:0,i1:19,j1:19,Lb:2}).run();return Math.max(...NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)))})()""")
     pruefe('Abriss-Rechteck schneidet auf Höhe 2', erg == 2, f'höchstes Gebäude {erg}')
