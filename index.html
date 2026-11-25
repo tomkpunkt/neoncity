@@ -475,25 +475,27 @@ const emptyGrid=()=>Array.from({length:N*N},empty);
 const at=(i,j)=>inb(i,j)?G[ix(i,j)]:null;
 const topOf=m=>32-Math.clz32(m),rng=(a,b)=>b<=a?0:((1<<b)-1)&~((1<<a)-1),pc=m=>{let n=0;while(m){m&=m-1;n++}return n};
 const hasF=(c,k)=>!!c&&k>=0&&k<MAXH&&((c.m>>>k)&1)===1,free0=c=>!!c&&!(c.m&1);
+const PKN=['Wiese','Bäume','Große Bäume','Statue','Brunnen','Monument'],PKMAX=PKN.length-1,PKH=[.06,.5,.95,1.05,.5,2.2];   // Park-Ebenen und ihre Höhe
+const pkLv=c=>c.pk===undefined?2:c.pk;   // Parks aus alten Spielständen behalten ihre Bäume
 const isRoad=c=>free0(c)&&c.g===1,isPlz=c=>free0(c)&&c.g===3,isWalk=c=>isRoad(c)||isPlz(c),isPk=c=>free0(c)&&c.g===2,isLand=c=>!!c&&(c.g>0||(c.m&1)===1);
 function occ(i,j,k){const n=at(i,j);return hasF(n,k)?n:null}
 const same=(a,b)=>!!a&&!!b&&a.m!==0&&b.m!==0&&a.s===b.s&&a.c===b.c;
 function segOf(m,k){if(!((m>>>k)&1))return null;let a=k,b=k;while(a>0&&(m>>>(a-1))&1)a--;while(b<MAXH-1&&(m>>>(b+1))&1)b++;return[a,b]}
 function fixCell(c){if(!c.m){c.sg=[];delete c.cn;delete c.bb}else c.sg=c.sg.filter(q=>hasF(c,q[1]))}
-const cellKey=c=>`${c.g},${c.m},${c.s},${c.c},${JSON.stringify(c.sg)},${c.bb},${c.cn||''}`;
+const cellKey=c=>`${c.g},${c.m},${c.s},${c.c},${JSON.stringify(c.sg)},${c.bb},${c.cn||''},${c.g===2?pkLv(c):''}`;
 G=emptyGrid();
 // ============================================================ Speichern, Laden, Teilen (Format 2; Format 1 wird beim Laden umgebaut)
-function snap(){const cells=[];G.forEach((c,n)=>{if(!c.g&&!c.m)return;const r=[n,c.g,c.m,c.s,c.c];const cn=c.cn&&c.cn.some(v=>v)?c.cn:0;if(c.sg.length||c.bb!==undefined||cn)r.push(c.sg,c.bb===undefined?-1:c.bb,cn||0);cells.push(r)});return JSON.stringify({v:2,app:'neonstadt',n:N,name:district,cells})}
+function snap(){const cells=[];G.forEach((c,n)=>{if(!c.g&&!c.m)return;const r=[n,c.g,c.m,c.s,c.c];const cn=c.cn&&c.cn.some(v=>v)?c.cn:0,pk=c.g===2&&c.pk!==undefined?c.pk:-1;if(c.sg.length||c.bb!==undefined||cn||pk>=0){r.push(c.sg,c.bb===undefined?-1:c.bb,cn||0);if(pk>=0)r.push(pk)}cells.push(r)});return JSON.stringify({v:2,app:'neonstadt',n:N,name:district,cells})}
 const clampI=(v,a,b)=>Math.max(a,Math.min(b,v|0));
 function load(json){const d=JSON.parse(json);if(!d||d.app!=='neonstadt'||!Array.isArray(d.cells)||(d.v!==1&&d.v!==2))throw new Error('Das ist kein Neon-City-Code.');
   const g=emptyGrid(),FULL=(1<<MAXH)-1;
-  for(const r of d.cells){if(!Array.isArray(r))continue;let n,gr,m,s,c,sg,bb,cn;
+  for(const r of d.cells){if(!Array.isArray(r))continue;let n,gr,m,s,c,sg,bb,cn,pk;
     if(d.v===1){let k,h,a;[n,k,h,s,c,a,sg,bb,cn]=r;k=clampI(k,0,3);h=clampI(h,0,MAXH);   // Format 1: Säule aus Höhe h und Durchgang a
       if(k===3){m=a?rng(1,Math.max(2,h)):rng(0,Math.max(1,h));gr=a?1:0}else{m=0;gr=k===1||k===2?k:0}}
-    else{[n,gr,m,s,c,sg,bb,cn]=r;gr=clampI(gr,0,3);m=(m|0)&FULL}
+    else{[n,gr,m,s,c,sg,bb,cn,pk]=r;gr=clampI(gr,0,3);m=(m|0)&FULL}
     if(!(n>=0&&n<N*N))continue;
     const cell={g:gr,m,s:clampI(s,0,3),c:clampI(c,0,PAL.length-1),sg:m&&Array.isArray(sg)?sg.filter(q=>Array.isArray(q)&&q.length===3).map(q=>[clampI(q[0],0,3),clampI(q[1],0,MAXH-1),clampI(q[2],0,15)]).slice(0,12):[]};
-    if(m&&(bb===0||bb===1))cell.bb=bb;if(m&&Array.isArray(cn))cell.cn=[0,1,2,3].map(q=>clampI(cn[q],0,3));
+    if(m&&(bb===0||bb===1))cell.bb=bb;if(m&&Array.isArray(cn))cell.cn=[0,1,2,3].map(q=>clampI(cn[q],0,3));if(gr===2&&typeof pk==='number'&&pk>=0)cell.pk=clampI(pk,0,PKMAX);
     g[n|0]=cell}
   G=g;if(typeof d.name==='string')district=d.name.slice(0,40)}
 let saveT=0,saveOk=true;
@@ -519,7 +521,7 @@ function generate(seed){
   for(let t=ea>0?mi+2:mi-1;inb(t,sj);t+=ea)set(t,sj,ground(1));for(let t=eb>0?mj+2:mj-1;inb(si,t);t+=eb)set(si,t,ground(1));
   const px=R()<.5?mi-2:mi+2,pz=R()<.5?mj-2:mj+2;for(const[a,b]of[[0,0],[1,0],[0,1],[1,1]])if(free(px+a,pz+b))g[ix(px+a,pz+b)]=ground(3);   // Platz an der Kreuzung
   for(const[di,dj]of[[1,0],[-1,0],[0,1],[0,-1]]){let i=mi,j=mj;while(L(i+di,j+dj)){i+=di;j+=dj}if(inb(i+di,j+dj)&&R()<.8){g[ix(i+di,j+dj)]=ground(1);const oi=di?0:1,oj=dj?0:1;if(inb(i+di+oi,j+dj+oj))g[ix(i+di+oi,j+dj+oj)]=ground(1)}}   // Stege
-  for(let tries=0;tries<60;tries++){const i0=Math.round(cx+(R()-.5)*9),j0=Math.round(cz+(R()-.5)*9);const cells=[[0,0],[1,0],[0,1],[1,1]].map(([a,b])=>[i0+a,j0+b]);if(cells.every(([a,b])=>free(a,b))){cells.forEach(([a,b])=>g[ix(a,b)]=ground(2));break}}
+  for(let tries=0;tries<60;tries++){const i0=Math.round(cx+(R()-.5)*9),j0=Math.round(cz+(R()-.5)*9);const cells=[[0,0],[1,0],[0,1],[1,1]].map(([a,b])=>[i0+a,j0+b]);if(cells.every(([a,b])=>free(a,b))){const f=(hash(i0,j0,seed+41)*4)|0,fl=3+((hash(i0,j0,seed+42)*3)|0);cells.forEach(([a,b],q)=>{const p=ground(2),r=hash(a,b,seed+43);p.pk=q===f?fl:r<.25?0:r<.55?1:2;g[ix(a,b)]=p});break}}
   const ox=Math.floor(R()*3),oz=Math.floor(R()*3),HT=new Int8Array(N*N);
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){if(!free(i,j))continue;
     const d=Math.hypot(i-cx,j-cz),tall=Math.max(0,1-d/(r0+.6)),rx=Math.floor((i+ox)/3),rz=Math.floor((j+oz)/3),hr=hash(rx,rz,seed);
@@ -670,11 +672,38 @@ function plazaCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.0
   for(let d=0;d<4;d++){if(isPlz(at(i+DX[d],j+DZ[d]))&&d<2)continue;B.glow.add(x+DX[d]*.494,top,z+DZ[d]*.494,d%2?1:.012,.004,d%2?.012:1,0,PLAZA,ci)}if(c.m)return;
   if(isPlz(at(i+1,j))&&isPlz(at(i,j+1))&&isPlz(at(i+1,j+1))&&!at(i+1,j).m&&!at(i,j+1).m&&!at(i+1,j+1).m&&hash(i,j,12)<.75){AUX.holos.push([x+.5,z+.5]);B.ring.add(x+.5,D+.02,z+.5,.5,.5,.5,0,mul(PLAZA,1.6),ci)}
   else if(hash(i,j,13)<.25){B.dark.add(x-.2,D+.12,z-.2,.26,.22,.22,0,DARK,ci);B.glow.add(x-.2,D+.24,z-.2,.3,.02,.26,0,mul(PG[(hash(i,j,14)*8)|0],2),ci)}}
-function parkCell(c,i,j,ci){const x=wx(i),z=wz(j);B.grass.add(x,D+.012,z,.98,.024,.98,0,[1,1,1],ci);
-  const nT=1+Math.floor(hash(i,j,21)*3),lowM=hasF(c,1);
-  for(let t=0;t<nT;t++){const ox=(hash(i,j,t,22)-.5)*.6,oz=(hash(i,j,t,23)-.5)*.6,s=.22+hash(i,j,t,24)*.16,th=lowM?.1:.18+hash(i,j,t,25)*.2;
-    B.dark.add(x+ox,D+.02+th/2,z+oz,.035,th,.035,0,TRUNK,ci);B.tree.add(x+ox,D+.02+th+s*.42,z+oz,s,s*.9,s,hash(i,j,t,27)*3,PARKC[(hash(i,j,t,26)*4)|0],ci)}
-  if(hash(i,j,28)<.45){const d=(hash(i,j,29)*4)|0;B.dark.add(x+DX[d]*.32,D+.06,z+DZ[d]*.32,d%2?.24:.07,.03,d%2?.07:.24,0,DARK,ci)}
+// Park nach Ebenen: 0 Wiese, 1 junge Bäume, 2 große Bäume, 3 Statue, 4 Brunnen, 5 Monument. Unter einem Überhang wird so weit abgestuft, bis es passt.
+function pkFit(c){let lv=pkLv(c);if(!c.m)return lv;const k=31-Math.clz32(c.m&-c.m),room=k*H-.04;while(lv>0&&PKH[lv]>room)lv--;return lv}
+function parkCell(c,i,j,ci){const x=wx(i),z=wz(j),lv=pkFit(c),acc=PARKC[(hash(i,j,30)*4)|0],h=(t,k)=>hash(i,j,t,k);
+  B.grass.add(x,D+.012,z,.98,.024,.98,0,[1,1,1],ci);
+  const tree=(ox,oz,s,th,t)=>{B.dark.add(x+ox,D+.02+th/2,z+oz,.035*(s/.25),th,.035*(s/.25),0,TRUNK,ci);B.tree.add(x+ox,D+.02+th+s*.42,z+oz,s,s*.9,s,h(t,27)*3,PARKC[(h(t,26)*4)|0],ci)};
+  const lantern=(ox,oz)=>{B.dark.add(x+ox,D+.09,z+oz,.018,.15,.018,0,DARK,ci);B.gsph.add(x+ox,D+.17,z+oz,.04,.04,.04,0,LANTERN,ci)};
+  const corners=[[.34,.34],[-.34,.34],[-.34,-.34],[.34,-.34]];
+  if(lv===0){for(let t=0;t<7;t++)B.gsph.add(x+(h(t,22)-.5)*.8,D+.03,z+(h(t,23)-.5)*.8,.03,.025,.03,0,mul(PARKC[(h(t,26)*4)|0],.7),ci)}   // Blumen in der Wiese
+  else if(lv<=2){const big=lv===2,nT=big?2+((h(0,21)*2)|0):1+((h(0,21)*3)|0);
+    for(let t=0;t<nT;t++)tree((h(t,22)-.5)*.6,(h(t,23)-.5)*.6,big?.32+h(t,24)*.12:.19+h(t,24)*.07,big?.3+h(t,25)*.18:.13+h(t,25)*.07,t);
+    if(h(0,28)<.45){const d=(h(0,29)*4)|0;B.dark.add(x+DX[d]*.32,D+.06,z+DZ[d]*.32,d%2?.24:.07,.03,d%2?.07:.24,0,DARK,ci)}}
+  else if(lv===3){const r=((h(0,31)*4)|0)*Math.PI/2,stone=[.22,.22,.24],bronze=[.3,.22,.14],yb=D+.2,S=1.35;   // Statue auf Sockel, Arm erhoben, Leuchtring über dem Kopf
+    B.conc.add(x,D+.05,z,.44,.07,.44,r,stone,ci);B.conc.add(x,D+.13,z,.3,.1,.3,r,stone,ci);B.glow.add(x,D+.185,z,.31,.012,.31,r,mul(acc,1.4),ci);
+    const sx=Math.cos(r),sz=-Math.sin(r);
+    for(const s of[-1,1])B.dark.add(x+sx*s*.03*S,yb+.1*S,z+sz*s*.03*S,.04*S,.2*S,.05*S,r,bronze,ci);
+    B.dark.add(x,yb+.32*S,z,.13*S,.24*S,.08*S,r,bronze,ci);B.dark.add(x,yb+.48*S,z,.075*S,.08*S,.075*S,r,bronze,ci);
+    B.dark.add(x+sx*.09*S,yb+.28*S,z+sz*.09*S,.035*S,.2*S,.045*S,r,bronze,ci);B.dark.add(x-sx*.09*S,yb+.5*S,z-sz*.09*S,.035*S,.22*S,.045*S,r,bronze,ci);B.gsph.add(x-sx*.09*S,yb+.64*S,z-sz*.09*S,.07,.07,.07,0,LANTERN,ci);
+    B.ring.add(x,yb+.6*S,z,.2,.2,.2,0,mul(acc,2.2),ci);
+    for(let q=0;q<4;q++){const a=r+Math.PI/4+q*Math.PI/2;B.gsph.add(x+Math.cos(a)*.2,D+.11,z-Math.sin(a)*.2,.035,.035,.035,0,mul(acc,1.8),ci)}   // Strahler am Sockel
+    corners.forEach(([a,b],t)=>t%2?lantern(a,b):tree(a,b,.15,.07,t))}
+  else if(lv===4){const rim=[.24,.24,.26],w=.62,wa=[.15,.7,1.1];   // Brunnen mit leuchtendem Wasser und Fontäne
+    for(let d=0;d<4;d++)B.conc.add(x+DX[d]*w/2,D+.06,z+DZ[d]*w/2,d%2?w+.06:.06,.09,d%2?.06:w+.06,0,rim,ci);
+    B.glow.add(x,D+.07,z,w-.04,.012,w-.04,0,wa,ci);B.ring.add(x,D+.085,z,w*.95,w*.95,w*.95,0,mul(wa,1.6),ci);
+    B.conc.add(x,D+.14,z,.07,.18,.07,0,rim,ci);B.conc.add(x,D+.23,z,.2,.03,.2,0,rim,ci);B.glow.add(x,D+.247,z,.18,.008,.18,0,wa,ci);
+    for(let t=0;t<4;t++)B.gsph.add(x,D+.29+t*.06,z,.07-t*.012,.07,.07-t*.012,0,mul([.5,1.4,2],1-t*.15),ci);
+    corners.forEach(([a,b])=>lantern(a*1.25,b*1.25))}
+  else{const stone=[.17,.17,.19],hgt=1.7,r=h(0,32)<.5?0:Math.PI/4;   // Monument: Obelisk mit Neonkanten und Leuchtspitze
+    B.conc.add(x,D+.04,z,.56,.05,.56,r,stone,ci);B.conc.add(x,D+.1,z,.4,.07,.4,r,stone,ci);B.conc.add(x,D+.17,z,.28,.07,.28,r,stone,ci);
+    B.conc.add(x,D+.2+hgt/2,z,.16,hgt,.16,r,stone,ci);B.roof.add(x,D+.2+hgt+.12,z,.226,.24,.226,r,stone,ci);
+    for(let q=0;q<4;q++){const a=r+Math.PI/4+q*Math.PI/2;B.glow.add(x+Math.cos(a)*.113,D+.2+hgt/2,z-Math.sin(a)*.113,.012,hgt,.012,r,mul(acc,1.6),ci)}
+    B.gsph.add(x,D+.2+hgt+.27,z,.06,.06,.06,0,mul(acc,2.6),ci);B.glow.add(x,D+.215,z,.42,.01,.42,r,mul(acc,1.2),ci);
+    corners.forEach(([a,b])=>lantern(a*1.2,b*1.2))}
   AUX.flies.push([x,z])}
 function building(c,i,j,ci,scr){
   const x=wx(i),z=wz(j),st=c.s,F=PF[c.c],Gl=PG[c.c],winB=B['win'+st],tp=topOf(c.m);
@@ -1044,10 +1073,11 @@ function makePlan(hit,tool){
   if(tool==='erase'){if(hit.water)return null;
     if(hit.ground)return(c.m&1)?null:P([ci],colBox(i,j,-.05,D+.03),()=>{c.g=0},'down');
     const k=hit.k;return P([ci],lvBox(i,j,k),()=>{c.m&=~(1<<k);fixCell(c)},'down',k,k)}
-  if(tool==='street'||tool==='park'){const gt=tool==='park'?2:state.ground,snd=tool==='park'?4:2;
-    if(hit.water||hit.ground)return(c.m&1)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),()=>{c.g=gt},'up',snd);
+  if((tool==='park'||tool==='shape')&&hit.ground&&isPk(c)){const nl=pkLv(c)+1;if(nl>PKMAX)return null;return P([ci],colBox(i,j,D,D+PKH[nl]),()=>{c.pk=nl},'up',4+nl)}
+  if(tool==='street'||tool==='park'){const gt=tool==='park'?2:state.ground,snd=tool==='park'?4:2,setG=()=>{if(gt===2&&c.g!==2)c.pk=0;c.g=gt};
+    if(hit.water||hit.ground)return(c.m&1)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),setG,'up',snd);
     if(tool==='street'&&hasF(c,0))return P([ci],lvBox(i,j,0),()=>{c.m&=~1;c.g=gt;fixCell(c)},'up',snd);
-    return hasF(c,0)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),()=>{c.g=gt},'up',snd)}
+    return hasF(c,0)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),setG,'up',snd)}
   if(!bh||!c.m)return null;
   if(tool==='neon'){if(hit.face==='bottom')return null;if(hit.face==='top')return P([ci],colBox(i,j,D+(hit.k+1)*H,D+(hit.k+1)*H+.7),()=>{c.bb=c.bb===1?0:1},'paint');
     const L=hit.k;return P([ci],{x:wx(i)+DX[d]*.6,z:wz(j)+DZ[d]*.6,y:D+L*H+H/2,sx:d%2?.6:.3,sy:H,sz:d%2?.3:.6},()=>{const k=c.sg.findIndex(s=>s[0]===d&&s[1]===L);if(k>=0)c.sg.splice(k,1);else c.sg.push([d,L,(Math.random()*16)|0])},'paint')}
@@ -1068,7 +1098,7 @@ function rectStart(hit,t){let yP=0,Lb=0;if(hit.water){}else if(hit.ground)yP=D+.
 function rectPlan(g){const r={i0:Math.min(g.i0,g.i1),i1:Math.max(g.i0,g.i1),j0:Math.min(g.j0,g.j1),j1:Math.max(g.j0,g.j1)},cells=rectCells(r),t=g.tool,Lb=g.Lb;
   let y0=D,y1=D+H,run,mh=1;cells.forEach(([i,j,ci])=>{mh=Math.max(mh,topOf(G[ci].m))});
   if(t==='build'){y0=D+Lb*H;y1=y0+H;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(Lb===0&&(isWalk(c)||isPk(c)))return;if(!c.m){c.s=g.s;c.c=g.c;if(g.cn)c.cn=g.cn.slice();else delete c.cn}c.m|=1<<Lb})}
-  else if(t==='street'||t==='park'){const gt=t==='park'?2:state.ground;y0=-.05;y1=D+.04;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(!(c.m&1))c.g=gt})}
+  else if(t==='street'||t==='park'){const gt=t==='park'?2:state.ground;y0=-.05;y1=D+.04;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(!(c.m&1)){if(gt===2&&c.g!==2)c.pk=0;c.g=gt}})}
   else if(t==='erase'){y0=Lb>0?D+Lb*H:-.05;y1=Math.max(D+mh*H,y0+.1);run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];c.m&=rng(0,Lb);fixCell(c);if(Lb===0)c.g=0})}
   else if(t==='paint'){y1=D+mh*H;const nc=state.color>=0?state.color:pickC(),ns=state.style>=0?state.style:null;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m){c.c=nc;if(ns!==null)c.s=ns}})}
   else if(t==='corner'){y1=D+mh*H;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m)c.cn=[0,1,2,3].map(()=>state.corner)})}
@@ -1098,7 +1128,7 @@ const ptrs=new Map();let gest=null,lpT=0,hoverXY=null,hoverReq=0,lastPtr='mouse'
 function apply(pl){pl.run();const now=T;(pl.cells||[]).forEach(n=>{BIRTH[n]=now;BLV[n]=pl.pop||0});rebuild();autosave();
   const b=pl.box;if(b)burst(b.x,b.y+b.sy/2,b.z,pl.col,pl.snd==='down'?14:24);else burstCells(pl.cells);sfx(pl.snd,pl.lv);if(pl.snd==='down')glitch(.5);hintStep()}
 function doAction(x,y,erase){const pl=makePlan(pick(x,y),erase?'erase':state.tool);if(!pl){sfx('nope');return}pushUndo();apply(pl);if(lastPtr==='mouse')hover(x,y)}
-function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){ghost.visible=false;showRegion(regionOf(hit));return}showRegion(null);showGhost(makePlan(hit,state.tool))}
+function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){ghost.visible=false;const r=regionOf(hit);showRegion(r);if(!r&&hit&&hit.ground&&isPk(G[ix(hit.i,hit.j)]))showGhost(makePlan(hit,'shape'));return}showRegion(null);showGhost(makePlan(hit,state.tool))}
 // Ruhemodus: wird die Maus nicht bewegt, blendet die Oberfläche nach kurzer Zeit aus
 const IDLE_MS=3200;let idle=false,lastAct=performance.now(),mouseXY=null;
 const uiBoxes=()=>[...document.querySelectorAll('.top .brand,.top .btns,.dock')].map(el=>el.getBoundingClientRect());
@@ -1123,7 +1153,8 @@ addEventListener('pointerdown',e=>{
   if(!hit){gest={kind:'orbit',...base};return}
   controls.enableRotate=false;controls.enablePan=false;
   const t=state.tool,c=hit.water?null:G[ix(hit.i,hit.j)];
-  if(t==='shape'){const r=regionOf(hit);if(r){gest={kind:'pull',...base,...r,delta:0,baseG:null,baseSnap:null};ghost.visible=false;showRegion(r)}else gest={kind:'click',...base}}
+  if((t==='park'||t==='shape')&&c&&hit.ground&&isPk(c)){gest={kind:'parkpull',...base,ci:ix(hit.i,hit.j),lv0:pkLv(c),lv:pkLv(c),baseSnap:null};ghost.visible=false}
+  else if(t==='shape'){const r=regionOf(hit);if(r){gest={kind:'pull',...base,...r,delta:0,baseG:null,baseSnap:null};ghost.visible=false;showRegion(r)}else gest={kind:'click',...base}}
   else if(t!=='neon'){const{yP,Lb}=rectStart(hit,t),inh=c&&c.m&&state.color<0&&state.style<0;
     gest={kind:'rect',...base,tool:t,yP,Lb,i0:hit.i,j0:hit.j,i1:hit.i,j1:hit.j,active:false,s:inh?c.s:pickS(),c:inh?c.c:pickC(),cn:inh?c.cn:undefined}}
   else gest={kind:'click',...base};
@@ -1132,20 +1163,21 @@ addEventListener('pointerdown',e=>{
 addEventListener('pointermove',e=>{
   if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(gest&&e.pointerId===gest.id){if(!gest.moved&&Math.hypot(e.clientX-gest.x,e.clientY-gest.y)>7){gest.moved=true;clearTimeout(lpT)}
-    if(gest.kind==='pull'&&gest.moved)pullMove(e);else if(gest.kind==='rect'&&gest.moved)rectMove(e);else if(gest.moved&&(gest.kind==='orbit'||gest.kind==='right')){ghost.visible=false;showRegion(null)}return}
+    if(gest.kind==='pull'&&gest.moved)pullMove(e);else if(gest.kind==='parkpull'&&gest.moved)parkMove(e);else if(gest.kind==='rect'&&gest.moved)rectMove(e);else if(gest.moved&&(gest.kind==='orbit'||gest.kind==='right')){ghost.visible=false;showRegion(null)}return}
   if(e.pointerType==='mouse'&&!e.buttons&&e.target===canvas){hoverXY=[e.clientX,e.clientY];if(!hoverReq)hoverReq=requestAnimationFrame(()=>{hoverReq=0;if(hoverXY)hover(...hoverXY)})}
   else if(e.pointerType==='mouse'&&e.target!==canvas&&!gest){ghost.visible=false;showRegion(null)}});
 function endPtr(e,cancel){ptrs.delete(e.pointerId);clearTimeout(lpT);if(!ptrs.size){controls.enableRotate=true;controls.enablePan=true}
   if(!gest||e.pointerId!==gest.id)return;const g=gest;gest=null;label(null);
-  if(cancel){if(g.kind==='pull'&&g.baseSnap){restore(g.baseSnap);undoS.pop();updUndo()}ghost.visible=false;showRegion(null);return}
+  if(cancel){if((g.kind==='pull'||g.kind==='parkpull')&&g.baseSnap){restore(g.baseSnap);undoS.pop();updUndo()}ghost.visible=false;showRegion(null);return}
   if(g.kind==='right'){if(!g.moved)doAction(e.clientX,e.clientY,true);return}
   if(g.kind==='orbit')return;
   if(g.kind==='pull'){if(!g.moved)doAction(g.x,g.y,false);else if(g.delta!==0){burstCells(g.changed||g.cells);sfx(g.delta>0?'up':'down',Math.abs(g.delta)+2);autosave();hintStep()}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);else showRegion(null);return}
+  if(g.kind==='parkpull'){if(!g.moved)doAction(g.x,g.y,false);else if(g.lv!==g.lv0){burstCells([g.ci]);autosave();hintStep()}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);return}
   if(g.kind==='rect'){if(!g.active){if(!g.moved||performance.now()-g.t<350)doAction(g.x,g.y,false);ghost.visible=false;return}const pl=rectPlan(g);if(pl){pushUndo();apply(pl)}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);else ghost.visible=false;return}
   if(g.kind==='click'&&!g.moved)doAction(g.x,g.y,false)}
 addEventListener('pointerup',e=>endPtr(e,false));addEventListener('pointercancel',e=>endPtr(e,true));
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function cancelGesture(){if(!gest)return;clearTimeout(lpT);if(gest.kind==='pull'&&gest.baseSnap){restore(gest.baseSnap);undoS.pop();updUndo()}gest=null;ghost.visible=false;showRegion(null);label(null)}
+function cancelGesture(){if(!gest)return;clearTimeout(lpT);if((gest.kind==='pull'||gest.kind==='parkpull')&&gest.baseSnap){restore(gest.baseSnap);undoS.pop();updUndo()}gest=null;ghost.visible=false;showRegion(null);label(null)}
 function burstCells(cells){const c=TCOL[state.tool];(cells||[]).slice(0,12).forEach(n=>{const cc=G[n];burst(wx(n%N),D+(cc&&cc.m?topOf(cc.m)*H:0.1),wz((n/N)|0),c,8)})}
 function rectMove(e){const g=gest,cell=planeCell(e.clientX,e.clientY,g.yP);if(!cell)return;[g.i1,g.j1]=cell;if(g.i1!==g.i0||g.j1!==g.j0)g.active=true;if(!g.active)return;
   const pl=rectPlan(g);showGhost(pl);label(`${pl.w} × ${pl.h}`,e.clientX,e.clientY)}
@@ -1162,6 +1194,11 @@ function pullMove(e){const g=gest,p=g.hit.p;let a=project(p.x,p.y,p.z),b;
   G=g.baseG.map(c=>({...c,sg:c.sg.slice(),cn:c.cn?c.cn.slice():undefined}));
   const changed=pullApply(g,delta),now=T,lv=g.face==='top'?Math.max(0,g.k+Math.min(0,delta)+1):g.face==='bottom'?Math.max(0,g.k-delta):g.one?g.k:Math.max(0,(segOf(G[g.cells[0]].m,g.k)||[0])[0]);
   changed.forEach(n=>{BIRTH[n]=now;BLV[n]=lv});g.changed=changed;g.delta=delta;ghost.visible=false;rebuild();showRegion(curRegion(g));sfx(delta>0?'up':'down',Math.abs(delta)+2)}
+function parkMove(e){const g=gest,p=g.hit.p,a=project(p.x,p.y,p.z),b=project(p.x,p.y+H,p.z),vx=b[0]-a[0],vy=b[1]-a[1],l2=Math.max(400,vx*vx+vy*vy);
+  const lv=clampI(g.lv0+Math.round(((e.clientX-g.x)*vx+(e.clientY-g.y)*vy)/l2),0,PKMAX),c=G[g.ci];
+  label(`${PKN[lv]} · Ebene ${lv}`+(pkFit({...c,pk:lv})<lv?' (zu wenig Platz)':''),e.clientX,e.clientY);if(lv===g.lv)return;
+  if(!g.baseSnap){g.baseSnap=snap();pushUndo(g.baseSnap)}
+  c.pk=lv;BIRTH[g.ci]=T;BLV[g.ci]=0;sfx(lv>g.lv?'up':'down',lv+2);g.lv=lv;rebuild()}
 // Tastatur: gedrückt halten = weich gleiten (mit Anfahren und Ausrollen)
 const keys=new Set(),KV={x:0,z:0,r:0,zm:0},MOVEK=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','q','e','+','-','=','pageup','pagedown','shift'];
 function keyMove(dt){const h=k=>keys.has(k),fast=h('shift')?2.2:1,k=1-Math.exp(-dt*7);
@@ -1178,12 +1215,12 @@ const TOOLS=[['build','Bauen','<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d
   ['shape','Formen','<path d="M4 15l8 4 8-4-8-4z"/><path d="M12 3v7M9 5.5 12 3l3 2.5"/>','2','Dach, Unterseite oder Fassade greifen und ziehen (Push/Pull).'],
   ['corner','Kanten','<path d="M4 20v-9a7 7 0 0 1 7-7h9"/><path d="M4 20h4M20 4v4"/>','3','Ecken eckig, schräg, rund oder hohl. Innenecken werden gefüllt.'],
   ['street','Straße','<path d="M8 3 5 21M16 3l3 18M12 4v3M12 10.5v3M12 17v3"/>','4','Straße oder Platz. Zwei Straßen nebeneinander werden breit.'],
-  ['park','Park','<path d="M12 21v-6"/><path d="M12 3c3.5 0 6 2.6 6 5.6 0 3.2-2.7 5.4-6 5.4S6 11.8 6 8.6C6 5.6 8.5 3 12 3z"/>','5','Park mit Leuchtbäumen.'],
+  ['park','Park','<path d="M12 21v-6"/><path d="M12 3c3.5 0 6 2.6 6 5.6 0 3.2-2.7 5.4-6 5.4S6 11.8 6 8.6C6 5.6 8.5 3 12 3z"/>','5','Park anlegen. Auf einem Park klicken oder hochziehen: Wiese, Bäume, große Bäume, Statue, Brunnen, Monument.'],
   ['neon','Neon','<path d="M13 2 5 13h6l-1 9 8-11h-6z"/>','6','Leuchtschild an der Fassade, Werbetafel auf dem Dach.'],
   ['paint','Gestalten','<path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z"/>','7','Farbe und Stil für ein ganzes Gebäude.'],
   ['erase','Abriss','<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>','8','Klick nimmt genau diese Etage weg. Ziehen schneidet ab dieser Höhe.']];
 const coarse=matchMedia('(pointer:coarse)').matches;
-const HINTS={park:'Klick oder Fläche ziehen für einen Park mit Leuchtbäumen',
+const HINTS={park:(coarse?'Tippen':'Klick')+' oder Fläche ziehen legt eine Wiese an · auf einem Park '+(coarse?'tippen':'klicken')+' oder hochziehen: Bäume, Statue, Brunnen, Monument',
   neon:'Klick auf eine Fassade setzt ein Leuchtschild · aufs Dach: Werbetafel an oder aus',erase:(coarse?'Tippen':'Klick')+' nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe'};
 $('#tools').innerHTML=TOOLS.map(([id,n,svg,k,tip])=>`<button class="tool" data-t="${id}" aria-pressed="${id==='build'}" title="${n} (${k}): ${tip}" aria-label="${n}"><svg class="i" viewBox="0 0 24 24">${svg}</svg><span>${n}</span></button>`).join('');
 $('#sws').innerHTML=`<button class="sw rnd" data-c="-1" aria-pressed="true" title="Zufallsfarbe" aria-label="Zufallsfarbe"><i></i></button>`+PAL.map((p,n)=>`<button class="sw" data-c="${n}" aria-pressed="false" title="${p.n}" aria-label="Farbe ${p.n}" style="--f:${p.f};--g:${p.g}"><i></i></button>`).join('');

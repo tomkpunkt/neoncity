@@ -193,6 +193,31 @@ def desktop(p):
         return pg.evaluate(js)
     w, xs = stuetzen(1)
     pruefe('Überhang 1 Feld: L-Verbinder', w == 2 and not xs, f'{w} Keile')
+    # Park-Ebenen: 0 Wiese, 1-2 Bäume, 3 Statue, 4 Brunnen, 5 Monument; unter einem Überhang wird abgestuft
+    def park(pk, m=0):
+        return pg.evaluate(LEER + f""";(()=>{{NEON.G[210]={{g:2,m:{m},s:1,c:0,sg:[],pk:{pk}}};NEON.rebuild();const B=NEON.B;return[B.tree.n,B.ring.n,B.roof.n]}})()""")
+    ebenen = [park(k) for k in range(6)]
+    pruefe('Park-Ebenen: Wiese, Bäume, Statue, Brunnen, Monument',
+           ebenen[0][0] == 0 and ebenen[1][0] >= 1 and ebenen[2][0] >= 2 and ebenen[3][1] >= 1 and ebenen[4][1] >= 1 and ebenen[5][2] >= 1, str(ebenen))
+    unter, frei = park(5, 2), park(0, 2)
+    pruefe('Monument unter Überhang wird zum Brunnen', unter[2] == frei[2] and unter[1] > frei[1], f'{unter} gegen {frei}')
+    pg.evaluate(LEER + ";NEON.G[210]={g:2,m:0,s:0,c:0,sg:[],pk:0};NEON.rebuild();NEON.setTool('park')")
+    mitte = proj(pg, 0.5, D + .02, 0.5)
+    pg.mouse.click(*mitte)
+    nach_klick = pg.evaluate('NEON.G[210].pk')
+    oben = proj(pg, 0.5, D + .02 + 3 * H, 0.5)
+    pg.mouse.move(*mitte)
+    pg.mouse.down()
+    for t in range(1, 11):
+        pg.mouse.move(mitte[0] + (oben[0] - mitte[0]) * t / 10, mitte[1] + (oben[1] - mitte[1]) * t / 10)
+    pg.mouse.up()
+    nach_ziehen = pg.evaluate('NEON.G[210].pk')
+    pruefe('Park: Klick hebt eine Ebene, Hochziehen mehrere', nach_klick == 1 and nach_ziehen == 4, f'Klick {nach_klick}, Ziehen {nach_ziehen}')
+    neu = pg.evaluate(LEER + ";(()=>{NEON.setTool('park');return 0})()")
+    pg.mouse.click(*proj(pg, 2.5, D + .02, 0.5))
+    pruefe('Neuer Park startet als Wiese', pg.evaluate('NEON.G[212].g===2&&NEON.G[212].pk===0'))
+    pruefe('Park-Ebene bleibt im Stadt-Code', pg.evaluate("(()=>{NEON.G[212].pk=4;const s=NEON.snap();NEON.load(s);return NEON.G[212].pk})()") == 4)
+    pg.evaluate("NEON.setTool('build')")
     # Eckmodifikation an der tragenden Wand: an dieser Ecke kein L-Verbinder
     def keile(cn):
         return pg.evaluate(LEER + f""";(()=>{{const G=NEON.G;G[10*20+3]={{g:0,m:31,s:1,c:2,sg:[],cn:{cn}}};G[10*20+4]={{g:0,m:16,s:1,c:2,sg:[]}};
