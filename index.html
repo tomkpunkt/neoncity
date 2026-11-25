@@ -377,9 +377,12 @@ float footprint=max(pixel.x,pixel.y),det=1.-smoothstep(.045,.17,footprint);
 float aa=.008+max(pixel.x*W,pixel.y*Hh);
 vec3 L=vColor;float lum=max(L.r,max(L.g,L.b)),base=step(.15,lum);
 float per=8.+22.*fract(sd*23.1),tt=uTime/per+sd*17.,cy=floor(tt),since=fract(tt)*per,thr=IROOM==2?.04:(base>.5?.18:.9);
-float on=step(thr,h1(vec2(cy,sd*91.))),was=step(thr,h1(vec2(cy-1.,sd*91.)));
+float on=step(thr,h1(vec2(cy,sd*91.)));
 if(base<.5)L=mix(vec3(1.,.78,.52),vec3(.75,.9,1.),step(.6,fract(sd*41.)))*.8;
-if(on>was&&since<.9)on*=step(.45,h1(vec2(floor(uTime*22.),sd*7.)));
+// Selten ein kurzer Aussetzer beim Einschalten, fest pro Fenster und Zyklus.
+if(on>.5&&since>=.06&&since<.16&&h1(vec2(cy+73.,sd*137.))<.025){
+  on=step(thr,h1(vec2(cy-1.,sd*91.)));
+}
 float tv=step(.8,fract(sd*9.7))*float(IROOM!=2);
 if(tv>.5)L*=mix(vec3(1.),vec3(.5,.72,1.3),.45+.4*h1(vec2(floor(uTime*4.),sd)));
 vec3 wall=IROOM==2?vec3(.8,.79,.75):mix(vec3(.6,.55,.5),vec3(.5,.54,.58),step(.5,fract(sd*3.3))),col;
@@ -1610,12 +1613,11 @@ setAtmo(0,true);setQuality(Q,false);setTilt(tiltOn);onResize();introBirth();rebu
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;if(RM)BIRTH.fill(-99);
 if(GS&&!RM){const o={r:46,phi:.55,th:1.6};camAt(o.r,o.phi,o.th);intro=GS.to(o,{r:31,phi:1.1,th:.78,duration:3.2,ease:'power3.out',onUpdate:()=>camAt(o.r,o.phi,o.th),onComplete:()=>intro=null})}
 // ============================================================ Hauptschleife
-let last=performance.now(),flick=0,fpsT=0,fpsN=0,fpsDone=false;const tiltV3=new THREE.Vector3();
+let last=performance.now(),fpsT=0,fpsN=0,fpsDone=false;const tiltV3=new THREE.Vector3();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.value=T;fx.uniforms.uTime.value=T;
   keyMove(dt);controls.update();if(ghost.visible){ghost.position.lerp(gT.p,.35);ghost.scale.lerp(gT.s,.35);ghostMat.opacity=.1+.06*Math.sin(T*6)}
   if(hl.count)hlMat.opacity=.3+.12*Math.sin(T*5);
   updCars(dt);updGCars(dt);updPeds(dt);updSparks(dt);
-  flick+=dt;if(flick>.08){flick=0;const s=(Math.random()*4)|0,b=B['win'+s];if(b.mesh&&b.n){const n=(Math.random()*b.n)|0,col=wcol(s,Math.random());b.mesh.instanceColor.setXYZ(n,...col);b.mesh.instanceColor.needsUpdate=true}}
   matBlink.color.setScalar(Math.sin(T*2.6)>.55?1:.08);matSign.color.setScalar(.93+.07*Math.sin(T*1.7)*(Math.random()<.02?-6:1));
   for(let a=0;a<3;a++){const ph=T/7+a*.33,f=ph%1,id=(Math.floor(ph)*3+a*2)%6;if(matAd[a].map!==tex.ads[id])matAd[a].map=tex.ads[id];matAd[a].color.setScalar(f<.04?(Math.random()<.5?2.2:.25):1);
     const pp=T/9+a*.41,pf=pp%1,pid=(Math.floor(pp)+a)%3;if(matAdP[a].map!==tex.adsP[pid])matAdP[a].map=tex.adsP[pid];matAdP[a].color.setScalar(pf<.035?(Math.random()<.5?2.2:.25):1.05)}
