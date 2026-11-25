@@ -186,6 +186,23 @@ def desktop(p):
     pruefe('Formen „Block“ auf dem Dach hebt nur ein Feld', len(hs) == 2 and hs[0] == 3 and pg.evaluate('NEON.G.filter(c=>c.m&&NEON.topOf(c.m)>3).length') == 1, str(hs))
     pg.evaluate("NEON.setPullMode('flaeche')")
 
+    # Stützen für Überhänge: 1 Feld = L-Verbinder, sonst alle zwei Felder vom Ende gezählt; über Straßen ein Portal
+    def stuetzen(n, strasse=False):
+        js = LEER + f""";(()=>{{const G=NEON.G;G[10*20+3]={{g:0,m:31,s:1,c:2,sg:[]}};for(let t=1;t<={n};t++)G[10*20+3+t]={{g:{1 if strasse else 0},m:16,s:1,c:2,sg:[]}};
+          NEON.rebuild();const M=NEON.B.conc.M,xs=[];for(let q=0;q<NEON.B.conc.n;q++)if(M[q*16+5]>1)xs.push(+(M[q*16+12]+9.5).toFixed(2));return[NEON.B.wedgeC.n,xs]}})()"""
+        return pg.evaluate(js)
+    w, xs = stuetzen(1)
+    pruefe('Überhang 1 Feld: L-Verbinder', w == 2 and not xs, f'{w} Keile')
+    erg = {n: sorted(stuetzen(n)[1]) for n in [2, 3, 4, 5, 6]}
+    soll = {2: [5.0], 3: [6.0], 4: [5.0, 7.0], 5: [6.0, 8.0], 6: [5.0, 7.0, 9.0]}
+    pruefe('Stützen alle zwei Felder: 2, 3, 2-4, 3-5, 2-4-6', erg == soll, str(erg))
+    port = pg.evaluate(LEER + """;(()=>{const G=NEON.G;for(let i=2;i<18;i++){G[9*20+i]={g:1,m:0,s:0,c:0,sg:[]};G[10*20+i]={g:1,m:0,s:0,c:0,sg:[]}}
+      G[8*20+9]={g:0,m:31,s:1,c:2,sg:[]};G[9*20+9].m=16;G[9*20+9].s=1;G[10*20+9].m=16;G[10*20+9].s=1;NEON.rebuild();
+      const M=NEON.B.conc.M,zs=[];for(let q=0;q<NEON.B.conc.n;q++)if(M[q*16+5]>1)zs.push(+(M[q*16+14]).toFixed(2));return zs.sort()})()""")
+    pruefe('Portal über breiter Straße: Pfosten an beiden Rändern', port == [-0.96, 0.96], str(port))
+    ax = pg.evaluate(LEER + """;(()=>{const G=NEON.G;for(let i=2;i<18;i++){G[9*20+i]={g:1,m:0,s:0,c:0,sg:[]};G[10*20+i]={g:1,m:0,s:0,c:0,sg:[]}}G[11*20+6]={g:3,m:0,s:0,c:0,sg:[]};NEON.rebuild();return NEON.roadAxis(6,10)})()""")
+    pruefe('Straße neben einem Platz bleibt gerade (keine falsche Kreuzung)', ax == 1, f'Einordnung {ax}')
+
     # Abriss-Rechteck schneidet auf Höhe 2
     erg = pg.evaluate("""(()=>{NEON.generate(7);NEON.rebuild();NEON.rectPlan({tool:'erase',i0:0,j0:0,i1:19,j1:19,Lb:2}).run();return Math.max(...NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)))})()""")
     pruefe('Abriss-Rechteck schneidet auf Höhe 2', erg == 2, f'höchstes Gebäude {erg}')

@@ -55,7 +55,12 @@ Nachbarn gleicher Farbe und gleichen Stils verschmelzen zu einem Gebäude. Je na
 - Läden mit Markise an Straßen, Plätzen und Parks,
 - Leuchtschilder, große Hochformat-Werbung an hohen Fassaden, Klimageräte, Balkone, Vordächer mit Lampions,
 - auf den Dächern Wassertanks, Antennen mit Blinklicht, Helipads und Werbetafeln,
-- Licht unter Überhängen; frei schwebende Teile bekommen Stützen bis zum Boden oder ins Wasser,
+- Licht unter Überhängen und **Stützen** je nach Länge des Überhangs:
+  - ein Feld weit: ein L-Verbinder an der Wand des tragenden Gebäudes,
+  - länger: alle zwei Felder eine Stütze, vom äußeren Ende gezählt (2 Felder → unter Feld 2, 3 → 3, 4 → 2 und 4, 5 → 3 und 5, 6 → 2, 4 und 6 …),
+  - über einer Straße statt der Stütze ein Portal mit Pfosten am Straßenrand; bei breiten Straßen über beide Spuren,
+  - ganz frei schwebende Teile stehen auf Stützen bis zum Boden oder ins Wasser,
+  - jeder Stil hat eigene Stützen: Konzern schlanke Stahlsäulen mit Leuchtringen, Megablock Betonpfeiler mit Kapitell, Container Gittermasten mit Kreuzverstrebung, Pagode rote Säulen und Torii-Portale mit Konsolen und Lampions,
 - Glas-Skywalks zwischen Türmen und Lampionketten zwischen Containern,
 - Suchscheinwerfer auf den höchsten Türmen.
 
@@ -68,9 +73,10 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 - **GSAP 3.12.5** für den Kameraflug beim Start und die Übergänge zwischen Stimmungen (`lagSmoothing(0)`, damit langsame Geräte nicht hängen bleiben).
 - **Tone.js 14.8.49** für Synth-Pad, Bass und Regenrauschen. Jede Etage spielt beim Bauen einen höheren Ton der Pentatonik.
 - **Stadtmodell**: Jedes Feld hat eine Bodenart `g` und eine Etagen-Maske `m`, in der Bit `k` für Etage `k` steht. Damit sind Überhänge, Löcher, Durchgänge und Brücken dasselbe: Etagen, unter denen nichts liegt.
-- **Rendering**: Jede Bauteilart ist ein `InstancedMesh`-„Eimer“ mit einem Draw-Call, insgesamt 61 Eimer. Leere Eimer werden nicht gezeichnet. Nach jeder Änderung wird die ganze Stadt aus dem Raster neu aufgebaut, das sind höchstens 20 × 20 × 18 Felder. Ein in `onBeforeCompile` eingesetzter Vertex-Shader lässt geänderte Etagen federnd aufploppen: Drehpunkt und Zeitpunkt je Instanz, und nur ab der geänderten Etage. Fassaden bekommen Welt-UVs, damit Texturen über verschmolzene Gebäude und runde Ecken durchlaufen. Ein Streulicht-Term färbt Wände in Bodennähe mit Neon ein.
+- **Rendering**: Jede Bauteilart ist ein `InstancedMesh`-„Eimer“ mit einem Draw-Call, insgesamt 65 Eimer. Leere Eimer werden nicht gezeichnet. Nach jeder Änderung wird die ganze Stadt aus dem Raster neu aufgebaut, das sind höchstens 20 × 20 × 18 Felder. Ein in `onBeforeCompile` eingesetzter Vertex-Shader lässt geänderte Etagen federnd aufploppen: Drehpunkt und Zeitpunkt je Instanz, und nur ab der geänderten Etage. Fassaden bekommen Welt-UVs, damit Texturen über verschmolzene Gebäude und runde Ecken durchlaufen. Ein Streulicht-Term färbt Wände in Bodennähe mit Neon ein.
 - **Eckformen**: Ein Stockwerk mit geformter Ecke besteht aus vier Viertel-Prismen (eckig, schräg, rund, hohl), die je nach Ecke gedreht und skaliert werden. Innenecken bekommen ein Füllstück im leeren Diagonalfeld (Dreieck oder Viertelkreis-Hohlkehle). Die Fenster der angrenzenden Wände werden passend gekürzt.
-- **Straßen**: Jedes Straßenfeld wird eingeordnet als gerade (x oder z), Kreuzung oder Ende/Kurve. Zwei gerade Felder gleicher Richtung nebeneinander ergeben eine breite Straße. Liegt in Fahrtrichtung eine Kreuzung oder ein Platz, kommt ein Zebrastreifen dazu.
+- **Straßen**: Jedes Straßenfeld wird eingeordnet als gerade (x oder z), Kreuzung oder Ende/Kurve. Dafür zählen nur Straßenfelder, Plätze daneben ändern die Einordnung nicht. Zwei gerade Felder gleicher Richtung nebeneinander ergeben eine breite Straße. Liegt in Fahrtrichtung eine Kreuzung oder ein Platz, kommt ein Zebrastreifen dazu.
+- **Stützen**: Eine Breitensuche je Etage geht von den getragenen Feldern aus, also Feldern mit einer Etage darunter. Sie misst für jede Überhang-Unterseite den Abstand `t` und die Länge `n` der Reihe nach außen. Bei `n = 1` entsteht ein L-Verbinder, sonst eine Stütze, wenn `t ≥ 2` und `n − t` gerade ist.
 - **Zufall**: Alles, was zum Bau gehört, kommt aus einem Hash von Feld, Etage und Richtung. Dieselbe Stadt sieht deshalb nach dem Laden genauso aus. `Math.random` steuert nur die Optik, also Partikel, Fensterflackern, Verkehr und Texturen.
 
 ### Spielstand
@@ -82,7 +88,7 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 
 ### Testschnittstelle
 
-`window.NEON` bietet `G`, `setPullMode`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
+`window.NEON` bietet `G`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
 
 ## Prüfen
 
@@ -91,7 +97,7 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 26 Punkte:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 30 Punkte:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
@@ -100,13 +106,15 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - Stadt-Code-Rundreise und Umbau von Format 1,
 - Überhang per Seitenklick, Etage aus der Mitte abreißen,
 - gefüllte Innenecke und Hohlkehle,
+- L-Verbinder, Stützenabstände 2, 3, 2-4, 3-5, 2-4-6, Portal über einer breiten Straße,
+- Straße neben einem Platz bleibt gerade,
 - Abriss-Rechteck,
 - weiches Gleiten mit der Tastatur, Tilt-Shift-Schalter,
 - Tippen am Handy,
 - keine Seitenfehler.
 
 **Stand 2026-11-25** (Commit mit diesem README):
-- **Ausgeführt:** alle 26 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Ausgeführt:** alle 30 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
 - **Nicht geprüft:** die Bildrate auf echter Grafikkarte, der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.
 

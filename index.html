@@ -160,6 +160,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 {
 const $=s=>document.querySelector(s);
 const GS=window.gsap||null;if(GS)GS.ticker.lagSmoothing(0);
@@ -286,6 +287,7 @@ totalEmissiveRadiance+=mix(uBA,uBB,bm)*bh*uBS*diffuseColor.rgb;}`);
 }
 const matBody=[0,1,2,3].map(s=>popify(new THREE.MeshStandardMaterial({map:tex.fac[s],roughness:[.3,.85,.6,.55][s],metalness:[.6,.05,.35,.15][s],envMapIntensity:[1.1,.35,.6,.5][s]}),{bounce:true,wuv:true}));
 const matDark=popify(new THREE.MeshStandardMaterial({roughness:.55,metalness:.5,envMapIntensity:.6}),{bounce:true});
+const matConc=popify(new THREE.MeshStandardMaterial({roughness:.9,metalness:.05,envMapIntensity:.3}),{bounce:true});
 const matDeck=popify(new THREE.MeshStandardMaterial({map:tex.deck,roughness:.8,metalness:.1,envMapIntensity:.4}),{bounce:true});
 const matAsph=popify(new THREE.MeshStandardMaterial({map:tex.asph,roughnessMap:tex.asphR,roughness:1,metalness:.35,envMapIntensity:1.3}),{bounce:true});
 const matGrass=popify(new THREE.MeshStandardMaterial({map:tex.grass,roughness:.95}),{bounce:true});
@@ -330,6 +332,8 @@ const cA=[1,.5],cB=[.5,1],cO=.03/Math.SQRT2;
 const WGEO_C=stripGeo([[cA[0]+(cB[0]-cA[0])*.14+cO,cA[1]+(cB[1]-cA[1])*.14+cO],[cA[0]+(cB[0]-cA[0])*.86+cO,cA[1]+(cB[1]-cA[1])*.86+cO]],()=>[Math.SQRT1_2,Math.SQRT1_2]);
 const GEO={box:new THREE.BoxGeometry(1,1,1),plane:new THREE.PlaneGeometry(1,1),cyl:new THREE.CylinderGeometry(.5,.5,1,14),sph:new THREE.IcosahedronGeometry(.5,1),
   cone4:new THREE.ConeGeometry(.5,1,4,1).rotateY(Math.PI/4),ring:new THREE.TorusGeometry(.5,.03,6,40).rotateX(Math.PI/2),arch:new THREE.TorusGeometry(.42,.022,6,28,Math.PI)};
+GEO.wedge=(()=>{const sh=new THREE.Shape();sh.moveTo(0,0);sh.lineTo(1,0);sh.lineTo(0,-1);sh.lineTo(0,0);const g=new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false});g.translate(0,0,-.5);return g})();   // Keil für L-Verbinder
+GEO.xbr=mergeGeometries([new THREE.BoxGeometry(1.414,.06,.04).rotateZ(Math.PI/4),new THREE.BoxGeometry(1.414,.06,.04).rotateZ(-Math.PI/4)]);   // Kreuzverstrebung
 // ============================================================ Instanz-Eimer: ein Draw-Call pro Bauteil
 const BIRTH=new Float32Array(N*N).fill(-99),BLV=new Int16Array(N*N); // Zeitpunkt der letzten Änderung und ab welcher Etage es hüpft
 function setM(a,o,x,y,z,sx,sy,sz,ry){const c=Math.cos(ry),s=Math.sin(ry);a[o]=c*sx;a[o+1]=0;a[o+2]=-s*sx;a[o+3]=0;a[o+4]=0;a[o+5]=sy;a[o+6]=0;a[o+7]=0;a[o+8]=s*sz;a[o+9]=0;a[o+10]=c*sz;a[o+11]=0;a[o+12]=x;a[o+13]=y;a[o+14]=z;a[o+15]=1}
@@ -353,7 +357,7 @@ mk('deck',GEO.box,matDeck,{recv:true});mk('asph',GEO.box,matAsph,{recv:true});mk
 for(let s=0;s<4;s++){mk('body'+s,GEO.box,matBody[s],{cast:true,recv:true});for(let q=0;q<4;q++)mk('q'+s+q,QGEO[q],matBody[s],{cast:true,recv:true});for(const f of[1,2])mk('f'+s+f,FGEO[f],matBody[s],{cast:true,recv:true});
   mk('win'+s,GEO.plane,matWin[s]);mk('winR'+s,WGEO_R,matWin[s]);mk('winC'+s,WGEO_C,matWin[s])}
 mk('shop',GEO.plane,matShop);mk('glow',GEO.box,matGlow);mk('gsph',GEO.sph,matGlow);mk('tree',GEO.sph,matGlow);mk('dark',GEO.box,matDark,{cast:true,recv:true});mk('cyl',GEO.cyl,matDark,{cast:true});
-mk('roof',GEO.cone4,matRoof,{cast:true,recv:true});mk('ring',GEO.ring,matGlow);mk('arch',GEO.arch,matGlow);mk('glass',GEO.box,matGlass);mk('sign',GEO.plane,matSign,{atlas:true});mk('blink',GEO.sph,matBlink);
+mk('roof',GEO.cone4,matRoof,{cast:true,recv:true});mk('conc',GEO.box,matConc,{cast:true,recv:true});mk('wedgeC',GEO.wedge,matConc,{cast:true});mk('wedgeM',GEO.wedge,matDark,{cast:true});mk('xbr',GEO.xbr,matDark,{cast:true});mk('ring',GEO.ring,matGlow);mk('arch',GEO.arch,matGlow);mk('glass',GEO.box,matGlass);mk('sign',GEO.plane,matSign,{atlas:true});mk('blink',GEO.sph,matBlink);
 for(let a=0;a<3;a++){mk('ad'+a,GEO.plane,matAd[a]);mk('adP'+a,GEO.plane,matAdP[a])}
 // ============================================================ Stadtmodell: Boden g und Etagen-Maske m (Bit k = Etage k), so sind Überhänge möglich
 let G=[],district='Distrikt Kanal-17';
@@ -519,7 +523,7 @@ function deck(c,i,j,ci){const x=wx(i),z=wz(j),v=.9+hash(i,j,5)*.2;B.deck.add(x,(
   for(let d=0;d<4;d++){if(isLand(at(i+DX[d],j+DZ[d])))continue;B.glow.add(x+DX[d]*.503,.05,z+DZ[d]*.503,1,.022,.006,DROT[d],WATERLINE,ci);
     if(!c.m&&hash(i,j,d,6)<.3){const u=(hash(i,j,d,7)-.5)*.7;B.cyl.add(x+DX[d]*.42+TX[d]*u,D+.04,z+DZ[d]*.42+TZ[d]*u,.05,.08,.05,0,DARK,ci)}}}
 // Straßen: 1 gerade in x, 2 gerade in z, 3 Kreuzung, 4 Ende oder Kurve. Zwei gerade Felder nebeneinander = breite Straße
-function roadAxis(i,j){const c=at(i,j);if(!isRoad(c))return 0;const cn=[0,1,2,3].map(d=>isWalk(at(i+DX[d],j+DZ[d])));const rx=cn[0]&&cn[2],rz=cn[1]&&cn[3];return rx&&!rz?1:rz&&!rx?2:rx&&rz?3:4}
+function roadAxis(i,j){const c=at(i,j);if(!isRoad(c))return 0;const cn=[0,1,2,3].map(d=>isRoad(at(i+DX[d],j+DZ[d])));const rx=cn[0]&&cn[2],rz=cn[1]&&cn[3];return rx&&!rz?1:rz&&!rx?2:rx&&rz?3:4}
 function lamp(c,i,j,ci,conn){const curbs=[0,1,2,3].filter(d=>!conn[d]);if(!curbs.length||c.m||hash(i,j,14)>.42)return;const x=wx(i),z=wz(j),d=curbs[(hash(i,j,15)*curbs.length)|0],u=(hash(i,j,16)<.5?-1:1)*.3,px=x+DX[d]*.44+TX[d]*u,pz=z+DZ[d]*.44+TZ[d]*u;
   B.cyl.add(px,D+.45,pz,.03,.9,.03,0,DARK,ci);B.glow.add(px-DX[d]*.08,D+.9,pz-DZ[d]*.08,d%2?.06:.18,.03,d%2?.18:.06,0,hash(i,j,17)<.5?LAMP_A:LAMP_B,ci)}
 function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.013,ax=roadAxis(i,j),nbs=[0,1,2,3].map(d=>at(i+DX[d],j+DZ[d])),conn=nbs.map(isWalk);
@@ -530,12 +534,13 @@ function roadCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.01
       for(const d of wide)if(d<=1)for(const s of[-1,1])B.glow.add(x+DX[d]*.5+(X?0:s*.025),top,z+DZ[d]*.5+(X?s*.025:0),X?1:.014,.004,X?.014:1,0,CENTER,ci)}
     else B.glow.add(x,top,z,X?1:.024,.004,X?.024:1,0,LANE,ci);
     for(const d of runD){if(roadAxis(i+DX[d],j+DZ[d])!==3&&!isPlz(nbs[d]))continue;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
-  else if(ax===4){let any=false;for(let d=0;d<4;d++)if(conn[d]){any=true;B.glow.add(x+DX[d]*.25,top,z+DZ[d]*.25,d%2?.024:.5,.004,d%2?.5:.024,0,LANE,ci)}if(!any)B.glow.add(x,top,z,.06,.004,.06,0,LANE,ci)}
-  else for(const s of[-1,1])for(const t of[-1,1])B.glow.add(x+s*.45,top,z+t*.45,.05,.004,.05,0,DASH,ci);
+  else if(ax===4){let any=false;for(let d=0;d<4;d++){if(isRoad(nbs[d])){any=true;B.glow.add(x+DX[d]*.25,top,z+DZ[d]*.25,d%2?.024:.5,.004,d%2?.5:.024,0,LANE,ci)}
+      else if(isPlz(nbs[d])){const X=d%2===0;for(let s=-3;s<=3;s++){const o=s*.13;B.glow.add(x+DX[d]*.37+(X?0:o),top,z+DZ[d]*.37+(X?o:0),X?.13:.065,.004,X?.065:.13,0,ZEBRA,ci)}}}
+    if(!any)B.glow.add(x,top,z,.06,.004,.06,0,LANE,ci)}
   lamp(c,i,j,ci,conn);
   if(!c.m&&hash(i,j,18)<.1)AUX.steam.push([x+(hash(i,j,19)-.5)*.4,D+.02,z+(hash(i,j,20)-.5)*.4])}
 function plazaCell(c,i,j,ci){const x=wx(i),z=wz(j),v=.85+hash(i,j,8)*.3,top=D+.013;B.asph.add(x,D+.006,z,1,.012,1,0,[.95*v,.9*v,1.08*v],ci);
-  B.glow.add(x-.494,top,z,.012,.004,1,0,PLAZA,ci);B.glow.add(x,top,z-.494,1,.004,.012,0,PLAZA,ci);if(c.m)return;
+  for(let d=0;d<4;d++){if(isPlz(at(i+DX[d],j+DZ[d]))&&d<2)continue;B.glow.add(x+DX[d]*.494,top,z+DZ[d]*.494,d%2?1:.012,.004,d%2?.012:1,0,PLAZA,ci)}if(c.m)return;
   if(isPlz(at(i+1,j))&&isPlz(at(i,j+1))&&isPlz(at(i+1,j+1))&&!at(i+1,j).m&&!at(i,j+1).m&&!at(i+1,j+1).m&&hash(i,j,12)<.75){AUX.holos.push([x+.5,z+.5]);B.ring.add(x+.5,D+.02,z+.5,.5,.5,.5,0,mul(PLAZA,1.6),ci)}
   else if(hash(i,j,13)<.25){B.dark.add(x-.2,D+.12,z-.2,.26,.22,.22,0,DARK,ci);B.glow.add(x-.2,D+.24,z-.2,.3,.02,.26,0,mul(PG[(hash(i,j,14)*8)|0],2),ci)}}
 function parkCell(c,i,j,ci){const x=wx(i),z=wz(j);B.grass.add(x,D+.012,z,.98,.024,.98,0,[1,1,1],ci);
@@ -569,13 +574,11 @@ function building(c,i,j,ci,scr){
     if(st===0)for(let d=0;d<4;d++){const d2=(d+1)%4;if(!nb[d]&&!nb[d2]&&!shp[d]){const ax=d%2===0?d:d2,az=d%2===1?d:d2;B.glow.add(x+(ax===0?x1:x0),y0+H/2,z+(az===1?z1:z0),.024,H,.024,0,mul(Gl,1.6),ci)}}
     if(k>0&&!hasF(c,k-1)){   // Überhang: Unterseite mit Licht, frei schwebende Teile bekommen Stützen
       B.glow.add(x+(x0+x1)/2,y0-.004,z+(z0+z1)/2,(x1-x0)*.55,.006,(z1-z0)*.55,0,SOFFIT,ci);
-      const passage=k===1&&(c.g===1||c.g===3);if(!passage&&!nb.some(n=>n))supports(c,i,j,ci,k,F)}
+}
     if(!hasF(c,k+1))segTop(c,i,j,ci,k,x,z,x0,x1,z0,z1,F,Gl,shp,k===tp-1);
   }
   if((c.g===1||c.g===3)&&!hasF(c,0)&&hasF(c,1))passage(c,i,j,ci,F,Gl);
 }
-function supports(c,i,j,ci,k,F){const below=c.m&rng(0,k),yb=below?D+topOf(below)*H:(isLand(c)?D:-.4),yt=D+k*H,h=yt-yb,x=wx(i),z=wz(j),e=.36;
-  for(const[a,b]of[[1,1],[1,-1],[-1,1],[-1,-1]]){B.dark.add(x+a*e,yb+h/2,z+b*e,.06,h,.06,0,mul(F,.5),ci);if(yb<0)B.glow.add(x+a*e,.05,z+b*e,.075,.02,.075,0,WATERLINE,ci)}}
 function shop(d,px,pz,fw,y0,hh,Gl,ci,i,j){const sc=hh<.5?mul(WARM,1.1):hh<.8?mul(Gl,.9):mul(COOL,1.1);
   onFace(B.shop,d,px,pz,0,y0+.2,.006,fw*.82,.32,1,sc,ci);onFace(B.glow,d,px,pz,0,y0+.405,.05,fw*.86,.022,.1,mul(Gl,2.2),ci);onFace(B.dark,d,px,pz,0,y0+.42,.05,fw*.86,.012,.1,DARK2,ci);
   if(hash(i,j,d,40)<.7)onFace(B.sign,d,px,pz,0,y0+.51,.008,Math.min(.62,fw*.78),.13,1,mul(PG[(hash(i,j,d,41)*8)|0],2.4),ci,ATL_H[(hash(i,j,d,42)*16)|0])}
@@ -644,12 +647,51 @@ function cables(){for(let j=0;j<N;j++)for(let i=0;i<N;i++){const A=G[ix(i,j)];if
     const tm=Math.min(topOf(A.m),topOf(Bc.m)),y=D+tm*H-.14,lvl=tm-1;if(!hasF(A,lvl)||!hasF(Bc,lvl)||occ(i+DX[d],j+DZ[d],lvl)||occ(i+DX[d],j+DZ[d],lvl-1))continue;
     const x0=wx(i)+DX[d]*(.5-GAP),z0=wz(j)+DZ[d]*(.5-GAP),x1=wx(i)+DX[d]*(1.5+GAP),z1=wz(j)+DZ[d]*(1.5+GAP);AUX.cables.push([x0,y,z0,x1,y,z1]);
     for(let t=1;t<=4;t++){const u=t/5;B.gsph.add(x0+(x1-x0)*u,y-Math.sin(u*Math.PI)*.22-.04,z0+(z1-z0)*u,.05,.065,.05,0,hash(i,j,t,36)<.5?LANTERN:mul(PG[A.c],1.8),ix(i,j))}}}}
+// Stützen für Überhänge: ein Feld weit = L-Verbinder an der Wand; länger = alle zwei Felder eine Stütze, vom Ende gezählt (2, 3, 2-4, 3-5, 2-4-6 …); über Straßen ein Portal
+const SUPC=[[.05,.06,.08],null,[.14,.06,.035],[.42,.05,.04]],GOLD=[2,1.3,.3],concCol=F=>[F[0]*.35+.12,F[1]*.35+.12,F[2]*.35+.12],portals=new Set();
+function column(x,z,yb,yt,st,F,Gl,ci){const h=yt-yb,ym=yb+h/2,gb=Math.max(yb,.02);if(h<=.02)return;
+  if(st===0){B.cyl.add(x,ym,z,.13,h,.13,0,SUPC[0],ci);B.ring.add(x,yt-.04,z,.24,.24,.24,0,mul(Gl,2),ci);B.ring.add(x,gb+.06,z,.24,.24,.24,0,mul(Gl,2),ci)}
+  else if(st===1){const c=concCol(F);B.conc.add(x,ym,z,.17,h,.17,0,c,ci);B.conc.add(x,yt-.03,z,.27,.06,.27,0,c,ci);B.conc.add(x,yb+.04,z,.23,.08,.23,0,c,ci)}
+  else if(st===2){const c=SUPC[2];for(const[a,b]of[[1,1],[1,-1],[-1,1],[-1,-1]])B.dark.add(x+a*.08,ym,z+b*.08,.025,h,.025,0,c,ci);const n=Math.max(1,Math.round(h/.3)),sh=h/n;
+    for(let s=0;s<n;s++){const y=yb+sh*(s+.5);B.xbr.add(x,y,z+.08,.16,sh,1,0,c,ci);B.xbr.add(x,y,z-.08,.16,sh,1,0,c,ci);B.xbr.add(x+.08,y,z,.16,sh,1,Math.PI/2,c,ci);B.xbr.add(x-.08,y,z,.16,sh,1,Math.PI/2,c,ci)}
+    B.glow.add(x,gb+.05,z,.2,.03,.2,0,[2.4,.9,.1],ci)}
+  else{B.cyl.add(x,ym,z,.15,h,.15,0,SUPC[3],ci);B.ring.add(x,yt-.08,z,.26,.26,.26,0,GOLD,ci);B.conc.add(x,yb+.04,z,.24,.08,.24,0,[.25,.24,.22],ci)}
+  if(yb<0)B.glow.add(x,.05,z,.26,.02,.26,0,WATERLINE,ci)}
+function beam(x0,z0,x1,z1,y,st,F,Gl,ci){const dx=x1-x0,dz=z1-z0,L=Math.hypot(dx,dz),r=Math.atan2(-dz,dx),mx=(x0+x1)/2,mz=(z0+z1)/2;
+  if(st===0){B.dark.add(mx,y-.05,mz,L+.1,.1,.1,r,SUPC[0],ci);B.glow.add(mx,y-.105,mz,L,.012,.03,r,mul(Gl,2),ci)}
+  else if(st===1)B.conc.add(mx,y-.07,mz,L+.2,.14,.16,r,concCol(F),ci);
+  else if(st===2){const c=SUPC[2];B.dark.add(mx,y-.015,mz,L,.03,.04,r,c,ci);B.dark.add(mx,y-.165,mz,L,.03,.04,r,c,ci);const n=Math.max(1,Math.round(L/.18));
+    for(let s=0;s<n;s++){const t=((s+.5)/n-.5)*L;B.xbr.add(mx+Math.cos(r)*t,y-.09,mz-Math.sin(r)*t,L/n,.15,1,r,c,ci)}}
+  else{B.dark.add(mx,y-.04,mz,L+.36,.08,.12,r,SUPC[3],ci);B.dark.add(mx,y-.26,mz,L+.1,.06,.08,r,SUPC[3],ci);B.glow.add(mx,y-.15,mz,.1,.16,.05,r,GOLD,ci)}}
+function roadPortal(i,j,k,st,F,Gl,ci){const ax=roadAxis(i,j),yt=D+k*H,x=wx(i),z=wz(j);
+  if(ax===1||ax===2){const X=ax===1;let lo=0,hi=0;if(roadAxis(X?i:i-1,X?j-1:j)===ax)lo=-1;else if(roadAxis(X?i:i+1,X?j+1:j)===ax)hi=1;   // breite Straße: über beide Spuren
+    const key=(X?ix(i,j+lo):ix(i+lo,j))*32+k;if(portals.has(key))return;portals.add(key);
+    const p0=X?[x,z+lo-.46]:[x+lo-.46,z],p1=X?[x,z+hi+.46]:[x+hi+.46,z];column(p0[0],p0[1],D,yt,st,F,Gl,ci);column(p1[0],p1[1],D,yt,st,F,Gl,ci);beam(p0[0],p0[1],p1[0],p1[1],yt,st,F,Gl,ci)}
+  else{column(x+.44,z+.44,D,yt,st,F,Gl,ci);column(x-.44,z-.44,D,yt,st,F,Gl,ci);beam(x+.44,z+.44,x-.44,z-.44,yt,st,F,Gl,ci)}}
+function bracket(i,j,k,dOut,st,F,Gl,ci){const yt=D+k*H,px=wx(i)+DX[dOut]*(.5-GAP),pz=wz(j)+DZ[dOut]*(.5-GAP),r=DROT[dOut]-Math.PI/2,ox=DX[dOut],oz=DZ[dOut];
+  for(const s of[-.28,.28]){const bx=px+TX[dOut]*s,bz=pz+TZ[dOut]*s;
+    if(st===0){B.wedgeM.add(bx,yt,bz,.55,.42,.05,r,SUPC[0],ci);B.glow.add(bx+ox*.5,yt-.03,bz+oz*.5,.04,.04,.04,0,mul(Gl,2.4),ci)}
+    else if(st===1)B.wedgeC.add(bx,yt,bz,.5,.5,.14,r,concCol(F),ci);
+    else if(st===2){const c=SUPC[2];B.xbr.add(bx+ox*.25,yt-.2,bz+oz*.25,.5,.4,1,r,c,ci);B.dark.add(bx+ox*.27,yt-.015,bz+oz*.27,.55,.03,.04,r,c,ci);B.dark.add(bx+ox*.5,yt-.2,bz+oz*.5,.03,.4,.03,0,c,ci)}
+    else{for(let n=0;n<3;n++){const re=.5-.16*n;B.dark.add(bx+ox*re/2,yt-.04-.09*n,bz+oz*re/2,re,.08,.1,r,SUPC[3],ci)}B.gsph.add(bx+ox*.46,yt-.2,bz+oz*.46,.07,.09,.07,0,LANTERN,ci)}}}
+function supportAt(c,i,j,ci,k){const st=c.s,F=PF[c.c],Gl=PG[c.c],below=c.m&rng(0,k),yt=D+k*H;if(!below&&isRoad(c)){roadPortal(i,j,k,st,F,Gl,ci);return}
+  column(wx(i),wz(j),below?D+topOf(below)*H:(isLand(c)?D:-.4),yt,st,F,Gl,ci)}
+function overhangs(){portals.clear();const bot=new Map();
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const c=G[ix(i,j)];if(!c.m)continue;const tp=topOf(c.m);for(let k=1;k<tp;k++)if(hasF(c,k)&&!hasF(c,k-1)&&!(k===1&&(c.g===1||c.g===3)))bot.set(ix(i,j)*32+k,[i,j,k])}
+  const dist=new Map(),par=new Map(),q=[];
+  for(const[key,[i,j,k]]of bot)for(let d=0;d<4;d++){const n=at(i+DX[d],j+DZ[d]);if(hasF(n,k)&&hasF(n,k-1)){dist.set(key,1);par.set(key,d);q.push(key);break}}   // getragen vom Nachbarn
+  for(let h=0;h<q.length;h++){const key=q[h],[i,j,k]=bot.get(key),dd=dist.get(key);for(let d=0;d<4;d++){const ni=i+DX[d],nj=j+DZ[d];if(!inb(ni,nj))continue;const nk=ix(ni,nj)*32+k;if(bot.has(nk)&&!dist.has(nk)){dist.set(nk,dd+1);par.set(nk,(d+2)%4);q.push(nk)}}}
+  for(const[key,[i,j,k]]of bot){const ci=ix(i,j),c=G[ci];
+    if(!dist.has(key)){if((i+j)%2===0||![0,1,2,3].some(d=>occ(i+DX[d],j+DZ[d],k)))supportAt(c,i,j,ci,k);continue}   // frei schwebend
+    const t=dist.get(key),p=par.get(key),out=(p+2)%4;let n=t,a=i,b=j;
+    for(;;){const ni=a+DX[out],nj=b+DZ[out];if(!inb(ni,nj)||dist.get(ix(ni,nj)*32+k)!==n+1)break;n++;a=ni;b=nj}
+    if(n===1)bracket(i+DX[p],j+DZ[p],k,out,c.s,PF[c.c],PG[c.c],ci);else if(t>=2&&(n-t)%2===0)supportAt(c,i,j,ci,k)}}
 function buildAll(){
   for(const k in B)B[k].reset();for(const k in AUX)AUX[k].length=0;prepFills();let floors=0,tallest=0;
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){const ci=ix(i,j),c=G[ci];if(!c.g&&!c.m)continue;if(isLand(c))deck(c,i,j,ci);
     if(isRoad(c))roadCell(c,i,j,ci);else if(isPlz(c))plazaCell(c,i,j,ci);else if(isPk(c))parkCell(c,i,j,ci);
     if(c.m){const scr=facadeScreen(c,i,j);building(c,i,j,ci,scr);if(scr)drawScreen(c,i,j,ci,scr);signs(c,i,j,ci,PG[c.c],scr);floors+=pc(c.m);const tp=topOf(c.m);tallest=Math.max(tallest,tp);AUX.lights.push([ci,tp])}}
-  fills();skywalks();cables();for(const k in B)B[k].commit();
+  fills();overhangs();skywalks();cables();for(const k in B)B[k].commit();
   STATS.floors=floors;STATS.tallest=tallest;
 }
 // ============================================================ Zusatzobjekte: Kabel, Dampf, Hologramme, Suchscheinwerfer
@@ -1088,7 +1130,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.val
   if(!fpsDone){fpsT+=dt;if(fpsT>2){fpsN++;if(fpsT>6){fpsDone=true;const fps=fpsN/4;if(fps<24&&Q&&!qManual){setQuality(0,false);toast('Effekte reduziert, damit alles flüssig läuft')}}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0';setTimeout(()=>l.remove(),900)});
-window.NEON={setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
+window.NEON={roadAxis,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
 <script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent='three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.';}},15000);</script>
