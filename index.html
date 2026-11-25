@@ -137,6 +137,7 @@ window.addEventListener('error',function(e){var el=document.getElementById('err'
   <div class="row" id="rowPal"><div class="grp" id="sws"></div><div class="sep"></div><div class="grp" id="sts"></div></div>
   <div class="row" id="rowCorner" hidden><div class="grp" id="cns"></div><div class="sep"></div><p class="side" style="text-align:left">Ecke anklicken · Innenecken werden gefüllt · Dachmitte: ganzes Gebäude</p></div>
   <div class="row" id="rowStreet" hidden><div class="grp" id="gds"></div><div class="sep"></div><p class="side" style="text-align:left">Zwei Straßen nebeneinander werden eine breite Straße · auf einem Gebäude entsteht ein Durchgang</p></div>
+  <div class="row" id="rowShape" hidden><div class="grp" id="pms"></div><div class="sep"></div><p class="side" style="text-align:left" id="pmHint"></p></div>
   <div class="row" id="rowHint" hidden><p id="rowHintP"></p></div>
 </footer>
 
@@ -822,7 +823,8 @@ const faceDir=n=>n.x>.5?0:n.z>.5?1:n.x<-.5?2:n.z<-.5?3:-1;
 const lvlAt=y=>Math.max(0,Math.floor((y-D)/H));
 function project(x,y,z){const v=new THREE.Vector3(x,y,z).project(camera);return[(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]}
 // ============================================================ Werkzeuge
-const state={tool:'build',color:-1,style:-1,corner:2,ground:1};
+const state={tool:'build',color:-1,style:-1,corner:2,ground:1,pullMode:'flaeche'};
+const PM=[['flaeche','Fläche','die ganze zusammenhängende Fläche'],['etage','Etage','nur diese eine Etage'],['reihe','Reihe','ein Streifen von einem Feld Breite'],['block','Block','ein einzelnes Feld']];
 const pickS=()=>{if(state.style>=0)return state.style;const r=Math.random();return r<.25?0:r<.6?1:r<.8?2:3};
 const pickC=()=>state.color>=0?state.color:(Math.random()*PAL.length)|0;
 const TCOL={build:[.1,1.8,2.2],shape:[2.2,.4,1.6],corner:[1.8,1.6,.3],street:[2,1.6,.3],park:[.4,2,.6],neon:[2.4,.3,1.8],paint:[1.6,.6,2.4],erase:[2.6,.25,.3]};
@@ -832,16 +834,21 @@ const topRegion=(i,j,k)=>flood(i,j,(n,c0)=>same(n,c0)&&hasF(n,k)&&!hasF(n,k+1));
 const botRegion=(i,j,k)=>flood(i,j,(n,c0)=>same(n,c0)&&hasF(n,k)&&!hasF(n,k-1));
 function sideRegion(i,j,d,L){const c0=at(i,j),out=[ix(i,j)],ta=d%2===0?[0,1]:[1,0];
   for(const s of[1,-1]){let a=i,b=j;for(;;){a+=ta[0]*s;b+=ta[1]*s;const n=at(a,b);if(!same(n,c0)||!hasF(n,L)||occ(a+DX[d],b+DZ[d],L))break;out.push(ix(a,b))}}return out}
-function regionOf(hit){if(!hit||hit.water||hit.ground)return null;const{i,j,k}=hit;
-  if(hit.face==='top')return{face:'top',k,cells:topRegion(i,j,k)};if(hit.face==='bottom')return{face:'bottom',k,cells:botRegion(i,j,k)};
-  const d=faceDir(hit.n);return{face:'side',k,d,cells:sideRegion(i,j,d,k)}}
+const rowAxis=()=>{const f=new THREE.Vector3();camera.getWorldDirection(f);return Math.abs(f.z)>Math.abs(f.x)?0:1};   // Reihe läuft waagerecht über den Bildschirm
+function lineOf(i,j,ax,cond){const c0=at(i,j),out=[ix(i,j)],dv=ax===0?[1,0]:[0,1];for(const s of[1,-1]){let a=i,b=j;for(;;){a+=dv[0]*s;b+=dv[1]*s;const n=at(a,b);if(!same(n,c0)||!cond(n))break;out.push(ix(a,b))}}return out}
+function regionOf(hit,mode=state.pullMode){if(!hit||hit.water||hit.ground)return null;const{i,j,k}=hit;
+  if(hit.face!=='side'){const top=hit.face==='top',cond=n=>hasF(n,k)&&!hasF(n,top?k+1:k-1);   // Dach oder Unterseite
+    const cells=mode==='block'?[ix(i,j)]:mode==='reihe'?lineOf(i,j,rowAxis(),cond):mode==='etage'?comp(i,j).filter(n=>cond(G[n])):(top?topRegion(i,j,k):botRegion(i,j,k));
+    return{face:hit.face,k,cells,mode}}
+  const d=faceDir(hit.n);   // Fassade: Fläche = ganze Fassade, Etage = waagerechter Streifen, Reihe = senkrechter Streifen, Block = ein Feld einer Etage
+  return{face:'side',k,d,mode,one:mode==='etage'||mode==='block',cells:mode==='reihe'||mode==='block'?[ix(i,j)]:sideRegion(i,j,d,k)}}
 function pullApply(g,delta){const changed=[];   // Push/Pull: Dach hoch/runter, Unterseite runter/hoch, Fassade raus/rein
   if(g.face==='top'){for(const n of g.cells){const c=G[n];if(delta>0)c.m|=rng(g.k+1,Math.min(MAXH,g.k+1+delta));else if(delta<0)c.m&=~rng(Math.max(0,g.k+1+delta),g.k+1);fixCell(c);changed.push(n)}}
   else if(g.face==='bottom'){for(const n of g.cells){const c=G[n];if(delta>0)c.m|=rng(Math.max(0,g.k-delta),g.k);else if(delta<0)c.m&=~rng(g.k,Math.min(MAXH,g.k-delta));fixCell(c);changed.push(n)}}
-  else changed.push(...extrude(g.cells,g.d,g.k,delta));
+  else changed.push(...extrude(g.cells,g.d,g.k,delta,g.one));
   return changed}
-function extrude(cells,d,L,n){const changed=[];
-  for(const ci of cells){const src=G[ci],sg=segOf(src.m,L);if(!sg)continue;const mask=rng(sg[0],sg[1]+1),S={s:src.s,c:src.c,cn:src.cn},i=ci%N,j=(ci/N)|0;
+function extrude(cells,d,L,n,one){const changed=[];
+  for(const ci of cells){const src=G[ci],sg=segOf(src.m,L);if(!sg)continue;const mask=one?1<<L:rng(sg[0],sg[1]+1),S={s:src.s,c:src.c,cn:src.cn},i=ci%N,j=(ci/N)|0;
     if(n>0)for(let t=1;t<=n;t++){const a=i+DX[d]*t,b=j+DZ[d]*t;if(!inb(a,b))break;const k2=ix(a,b),tg=G[k2];let mk=mask;if(tg.g===1||tg.g===3)mk&=~1;
       if(tg.m&&(tg.s!==S.s||tg.c!==S.c)&&(tg.m&mk))break;if(!tg.m){tg.s=S.s;tg.c=S.c;if(S.cn)tg.cn=S.cn.slice()}tg.m|=mk;changed.push(k2)}
     else for(let t=0;t<-n;t++){const a=i-DX[d]*t,b=j-DZ[d]*t;if(!inb(a,b))break;const k2=ix(a,b),tg=G[k2];if(tg.s!==S.s||tg.c!==S.c||!(tg.m&mask))break;tg.m&=~mask;fixCell(tg);changed.push(k2)}}
@@ -907,7 +914,7 @@ function showRegion(r){if(!r||!r.cells.length){hl.count=0;hlLine.visible=false;r
   for(const ci of r.cells){const c=G[ci],i=ci%N,j=(ci/N)|0,x=wx(i),z=wz(j);if(!hasF(c,r.k))continue;
     if(r.face!=='side'){const y=r.face==='top'?D+(r.k+1)*H+.016:D+r.k*H-.016;setM(M,n++*16,x,y,z,1,.02,1,0);
       for(let d=0;d<4;d++){const ni=i+DX[d],nj=j+DZ[d];if(inb(ni,nj)&&set.has(ix(ni,nj))&&hasF(G[ix(ni,nj)],r.k))continue;const ex=x+DX[d]*.5,ez=z+DZ[d]*.5;seg(ex+TX[d]*.5,y,ez+TZ[d]*.5,ex-TX[d]*.5,y,ez-TZ[d]*.5)}}
-    else{const d=r.d,[a,b]=segOf(c.m,r.k),y0=D+a*H,y1=D+(b+1)*H,o=.5-GAP+.014,px=x+DX[d]*o,pz=z+DZ[d]*o;setM(M,n++*16,px,(y0+y1)/2,pz,d%2?1:.02,y1-y0,d%2?.02:1,0);
+    else{const d=r.d,[a,b]=r.one?[r.k,r.k]:segOf(c.m,r.k),y0=D+a*H,y1=D+(b+1)*H,o=.5-GAP+.014,px=x+DX[d]*o,pz=z+DZ[d]*o;setM(M,n++*16,px,(y0+y1)/2,pz,d%2?1:.02,y1-y0,d%2?.02:1,0);
       const lx=px+TX[d]*.5,lz=pz+TZ[d]*.5,rx=px-TX[d]*.5,rz=pz-TZ[d]*.5;seg(lx,y0,lz,rx,y0,rz);seg(lx,y1,lz,rx,y1,rz);seg(lx,y0,lz,lx,y1,lz);seg(rx,y0,rz,rx,y1,rz)}}
   hl.count=n;hl.instanceMatrix.needsUpdate=true;hlLine.geometry.dispose();hlLine.geometry=new THREE.BufferGeometry();hlLine.geometry.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));hlLine.visible=pos.length>0}
 // ============================================================ Eingabe: Pointer Events für Maus, Stift und Finger; Tastatur weich
@@ -956,7 +963,7 @@ function rectMove(e){const g=gest,cell=planeCell(e.clientX,e.clientY,g.yP);if(!c
 function curRegion(g){if(g.face==='top'){const k=g.k+g.delta;return{face:'top',k,cells:g.cells.filter(n=>hasF(G[n],k))}}
   if(g.face==='bottom'){const k=g.k-g.delta;return{face:'bottom',k,cells:g.cells.filter(n=>hasF(G[n],k))}}
   const out=[];for(const n of g.cells){const i=n%N,j=(n/N)|0;if(g.delta>=0){for(let t=g.delta;t>=0;t--){const a=i+DX[g.d]*t,b=j+DZ[g.d]*t;if(inb(a,b)&&hasF(G[ix(a,b)],g.k)){out.push(ix(a,b));break}}}
-    else{const a=i+DX[g.d]*g.delta,b=j+DZ[g.d]*g.delta;if(inb(a,b)&&hasF(G[ix(a,b)],g.k))out.push(ix(a,b))}}return{face:'side',k:g.k,d:g.d,cells:out}}
+    else{const a=i+DX[g.d]*g.delta,b=j+DZ[g.d]*g.delta;if(inb(a,b)&&hasF(G[ix(a,b)],g.k))out.push(ix(a,b))}}return{face:'side',k:g.k,d:g.d,one:g.one,cells:out}}
 function pullMove(e){const g=gest,p=g.hit.p;let a=project(p.x,p.y,p.z),b;
   if(g.face==='top')b=project(p.x,p.y+H,p.z);else if(g.face==='bottom')b=project(p.x,p.y-H,p.z);else b=project(p.x+DX[g.d],p.y,p.z+DZ[g.d]);
   const vx=b[0]-a[0],vy=b[1]-a[1],l2=Math.max(400,vx*vx+vy*vy),delta=Math.max(-N,Math.min(N,Math.round(((e.clientX-g.x)*vx+(e.clientY-g.y)*vy)/l2)));
@@ -964,7 +971,7 @@ function pullMove(e){const g=gest,p=g.hit.p;let a=project(p.x,p.y,p.z),b;
   if(delta===g.delta)return;
   if(!g.baseSnap){g.baseSnap=snap();g.baseG=G.map(c=>({...c,sg:c.sg.slice(),cn:c.cn?c.cn.slice():undefined}));pushUndo(g.baseSnap)}
   G=g.baseG.map(c=>({...c,sg:c.sg.slice(),cn:c.cn?c.cn.slice():undefined}));
-  const changed=pullApply(g,delta),now=T,lv=g.face==='top'?Math.max(0,g.k+Math.min(0,delta)+1):g.face==='bottom'?Math.max(0,g.k-delta):Math.max(0,(segOf(G[g.cells[0]].m,g.k)||[0])[0]);
+  const changed=pullApply(g,delta),now=T,lv=g.face==='top'?Math.max(0,g.k+Math.min(0,delta)+1):g.face==='bottom'?Math.max(0,g.k-delta):g.one?g.k:Math.max(0,(segOf(G[g.cells[0]].m,g.k)||[0])[0]);
   changed.forEach(n=>{BIRTH[n]=now;BLV[n]=lv});g.changed=changed;g.delta=delta;ghost.visible=false;rebuild();showRegion(curRegion(g));sfx(delta>0?'up':'down',Math.abs(delta)+2)}
 // Tastatur: gedrückt halten = weich gleiten (mit Anfahren und Ausrollen)
 const keys=new Set(),KV={x:0,z:0,r:0,zm:0},MOVEK=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','q','e','+','-','=','pageup','pagedown','shift'];
@@ -987,19 +994,22 @@ const TOOLS=[['build','Bauen','<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d
   ['paint','Gestalten','<path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z"/>','7','Farbe und Stil für ein ganzes Gebäude.'],
   ['erase','Abriss','<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>','8','Klick nimmt genau diese Etage weg. Ziehen schneidet ab dieser Höhe.']];
 const coarse=matchMedia('(pointer:coarse)').matches;
-const HINTS={shape:'Dach, Unterseite oder Fassade greifen und ziehen · die leuchtende Fläche wandert mit',park:'Klick oder Fläche ziehen für einen Park mit Leuchtbäumen',
+const HINTS={park:'Klick oder Fläche ziehen für einen Park mit Leuchtbäumen',
   neon:'Klick auf eine Fassade setzt ein Leuchtschild · aufs Dach: Werbetafel an oder aus',erase:(coarse?'Tippen':'Klick')+' nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe'};
 $('#tools').innerHTML=TOOLS.map(([id,n,svg,k,tip])=>`<button class="tool" data-t="${id}" aria-pressed="${id==='build'}" title="${n} (${k}): ${tip}" aria-label="${n}"><svg class="i" viewBox="0 0 24 24">${svg}</svg><span>${n}</span></button>`).join('');
 $('#sws').innerHTML=`<button class="sw rnd" data-c="-1" aria-pressed="true" title="Zufallsfarbe" aria-label="Zufallsfarbe"><i></i></button>`+PAL.map((p,n)=>`<button class="sw" data-c="${n}" aria-pressed="false" title="${p.n}" aria-label="Farbe ${p.n}" style="--f:${p.f};--g:${p.g}"><i></i></button>`).join('');
 $('#sts').innerHTML=`<button class="st" data-s="-1" aria-pressed="true">Zufall</button>`+STY.map((s,n)=>`<button class="st" data-s="${n}" aria-pressed="false">${s}</button>`).join('');
 $('#cns').innerHTML=CNN.map((s,n)=>`<button class="st" data-k="${n}" aria-pressed="${n===2}">${s}</button>`).join('');
+$('#pms').innerHTML=PM.map(([id,n])=>`<button class="st" data-p="${id}" aria-pressed="${id==='flaeche'}">${n}</button>`).join('');
 $('#gds').innerHTML=GRD.map(([g,n])=>`<button class="st" data-g="${g}" aria-pressed="${g===1}">${n}</button>`).join('');
 const press=(sel,attr,val)=>document.querySelectorAll(sel).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset[attr]===String(val))));
-function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=HINTS[t]||'';sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
+function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowShape').hidden=t!=='shape';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=HINTS[t]||'';sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
 $('#tools').onclick=e=>{const b=e.target.closest('.tool');if(b)setTool(b.dataset.t)};
 $('#sws').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;state.color=+b.dataset.c;press('.sw','c',state.color);sfx('ui')};
 $('#sts').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.style=+b.dataset.s;press('#sts .st','s',state.style);sfx('ui')};
 $('#cns').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.corner=+b.dataset.k;press('#cns .st','k',state.corner);sfx('ui')};
+function setPullMode(m){state.pullMode=m;press('#pms .st','p',m);$('#pmHint').textContent='Greift '+PM.find(a=>a[0]===m)[2]+' · Dach, Unterseite oder Fassade ziehen';sfx('ui');if(hoverXY&&lastPtr==='mouse'&&state.tool==='shape')hover(...hoverXY)}
+$('#pms').onclick=e=>{const b=e.target.closest('.st');if(b)setPullMode(b.dataset.p)};setPullMode('flaeche');
 $('#gds').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.ground=+b.dataset.g;press('#gds .st','g',state.ground);sfx('ui')};
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200)}
 function stats(){$('#stat').textContent=`${STATS.floors} Etagen · höchster Turm ${STATS.tallest}`;$('#dist').textContent=district}
@@ -1078,7 +1088,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.val
   if(!fpsDone){fpsT+=dt;if(fpsT>2){fpsN++;if(fpsT>6){fpsDone=true;const fps=fpsN/4;if(fps<24&&Q&&!qManual){setQuality(0,false);toast('Effekte reduziert, damit alles flüssig läuft')}}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0';setTimeout(()=>l.remove(),900)});
-window.NEON={killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
+window.NEON={setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
 <script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent='three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.';}},15000);</script>

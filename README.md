@@ -32,7 +32,14 @@ Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wieder
 ## Werkzeuge
 
 - **Bauen**: Ein Klick aufs Wasser oder aufs Dach setzt einen Block, ein Klick auf eine Unterseite setzt ihn darunter. Klickst du an eine Wand, landet der Block im Nachbarfeld auf genau dieser Höhe; steht dort nichts darunter, ragt er frei aus (**Überhang**). Mit Ziehen entsteht ein Rechteck auf der Höhe, an der du ansetzt, zum Beispiel ein 4×4-Block auf dem Wasser oder eine Platte, die von einer Fassade aus über die Straße ragt.
-- **Formen** (Push/Pull wie in Miniopolis): Du greifst ein Dach, eine Unterseite oder eine Fassade und ziehst. Dächer gehen hoch oder runter, Unterseiten wachsen nach unten oder werden hochgeschoben, Fassaden schiebst du Felder weit raus oder rein. Die betroffene Fläche leuchtet beim Zeigen auf und wandert beim Ziehen mit.
+- **Formen** (Push/Pull wie in Miniopolis): Du greifst ein Dach, eine Unterseite oder eine Fassade und ziehst. Dächer gehen hoch oder runter, Unterseiten wachsen nach unten oder werden hochgeschoben, Fassaden schiebst du Felder weit raus oder rein. Die betroffene Fläche leuchtet beim Zeigen auf und wandert beim Ziehen mit. Im Dock wählst du, was du greifst:
+
+  | Auswahl | an der Fassade | auf Dach oder Unterseite |
+  |---|---|---|
+  | **Fläche** | die ganze Fassade dieses Gebäudes | die zusammenhängende Dachfläche gleicher Höhe |
+  | **Etage** | nur diese eine Etage über die ganze Fassade, raus gezogen ergibt das eine auskragende Platte | alle Dachfelder des Gebäudes auf dieser Höhe |
+  | **Reihe** | ein senkrechter Streifen von einem Feld Breite | eine Reihe von Feldern, waagerecht im Bild |
+  | **Block** | ein einzelnes Feld auf dieser Etage | ein einzelnes Feld |
 - **Kanten**: Außenecken werden **eckig**, **schräg**, **rund** (nach außen gewölbt) oder **hohl** (nach innen gezogen). **Innenecken** von L- oder U-förmigen Gebäuden werden schräg oder rund ausgefüllt. Ein Klick auf die Dachmitte ändert das ganze Gebäude, Ziehen eine ganze Fläche.
 - **Straße**: Wahlweise Straße oder Platz. Zwei Straßenfelder nebeneinander werden eine **breite Straße** mit doppelter Mittellinie, gestrichelten Fahrstreifen und Zebrastreifen an Kreuzungen. Auf einem Gebäude wird das Erdgeschoss zum Durchgang mit Neon-Bogen.
 - **Park**: Leuchtbäume und Glühwürmchen.
@@ -75,7 +82,7 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 
 ### Testschnittstelle
 
-`window.NEON` bietet `G`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
+`window.NEON` bietet `G`, `setPullMode`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
 
 ## Prüfen
 
@@ -84,10 +91,11 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 20 Punkte:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 26 Punkte:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
+- die vier Auswahlarten Fläche, Etage, Reihe und Block an Fassade und Dach,
 - Abrunden und Undo/Redo,
 - Stadt-Code-Rundreise und Umbau von Format 1,
 - Überhang per Seitenklick, Etage aus der Mitte abreißen,
@@ -98,7 +106,7 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - keine Seitenfehler.
 
 **Stand 2026-11-25** (Commit mit diesem README):
-- **Ausgeführt:** alle 20 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Ausgeführt:** alle 26 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
 - **Nicht geprüft:** die Bildrate auf echter Grafikkarte, der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.
 

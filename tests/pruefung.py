@@ -154,6 +154,38 @@ def desktop(p):
     n = pg.evaluate(LEER + """;(()=>{const G=NEON.G,s=(n)=>G[n]={g:0,m:15,s:1,c:3,sg:[],cn:[2,2,2,2]};s(210);s(211);s(230);G[250]={g:0,m:15,s:0,c:1,sg:[],cn:[3,3,3,3]};NEON.rebuild();return[NEON.B.f12.n,NEON.B.q03.n]})()""")
     pruefe('Innenecke gefüllt und Hohlkehle gebaut', n[0] >= 4 and n[1] >= 4, f'Füllstücke {n[0]}, Hohlkehlen-Viertel {n[1]}')
 
+    # Formen: Fläche, Etage, Reihe, Block
+    BLOCK = LEER + ";(()=>{for(let j=8;j<12;j++)for(let i=8;i<12;i++)NEON.G[j*20+i]={g:0,m:7,s:1,c:0,sg:[]};NEON.rebuild();NEON.setTool('shape')})()"
+    seite_p, raus = proj(pg, 1.97, D + 1.5 * H, -0.5), proj(pg, 3.4, D + 1.5 * H, -0.5)
+    def ziehen(a, b):
+        pg.mouse.move(*a)
+        pg.mouse.down()
+        for t in range(1, 11):
+            pg.mouse.move(a[0] + (b[0] - a[0]) * t / 10, a[1] + (b[1] - a[1]) * t / 10)
+        pg.mouse.up()
+    erg = {}
+    for modus in ['flaeche', 'etage', 'reihe', 'block']:
+        pg.evaluate(BLOCK + f";NEON.setPullMode('{modus}')")
+        pg.mouse.move(*seite_p)
+        pg.wait_for_timeout(150)
+        anz = pg.evaluate('NEON.hl.count')
+        ziehen(seite_p, raus)
+        erg[modus] = (anz, pg.evaluate('[8,9,10,11].map(j=>NEON.G[j*20+12].m)'))
+    pruefe('Formen „Fläche“: ganze Fassade raus', erg['flaeche'] == (4, [7, 7, 7, 7]), str(erg['flaeche']))
+    pruefe('Formen „Etage“: nur diese Etage raus (Überhang)', erg['etage'] == (4, [2, 2, 2, 2]), str(erg['etage']))
+    pruefe('Formen „Reihe“: ein senkrechter Streifen raus', erg['reihe'] == (1, [0, 7, 0, 0]), str(erg['reihe']))
+    pruefe('Formen „Block“: ein einzelnes Feld raus', erg['block'] == (1, [0, 2, 0, 0]), str(erg['block']))
+    pg.evaluate(BLOCK + ";NEON.setPullMode('reihe')")
+    dach = proj(pg, 0.5, D + 3 * H, 0.5)
+    pg.mouse.move(*dach)
+    pg.wait_for_timeout(150)
+    pruefe('Formen „Reihe“ auf dem Dach markiert 4 Felder', pg.evaluate('NEON.hl.count') == 4)
+    pg.evaluate("NEON.setPullMode('block')")
+    ziehen(dach, (dach[0], dach[1] - 120))
+    hs = pg.evaluate('[...new Set(NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)))].sort()')
+    pruefe('Formen „Block“ auf dem Dach hebt nur ein Feld', len(hs) == 2 and hs[0] == 3 and pg.evaluate('NEON.G.filter(c=>c.m&&NEON.topOf(c.m)>3).length') == 1, str(hs))
+    pg.evaluate("NEON.setPullMode('flaeche')")
+
     # Abriss-Rechteck schneidet auf Höhe 2
     erg = pg.evaluate("""(()=>{NEON.generate(7);NEON.rebuild();NEON.rectPlan({tool:'erase',i0:0,j0:0,i1:19,j1:19,Lb:2}).run();return Math.max(...NEON.G.filter(c=>c.m).map(c=>NEON.topOf(c.m)))})()""")
     pruefe('Abriss-Rechteck schneidet auf Höhe 2', erg == 2, f'höchstes Gebäude {erg}')
