@@ -57,6 +57,58 @@ window.checkTraffic=()=>{
   if(crossings.has(middle)||walkGraph.has(source)||gcars.some(c=>c.cell===middle))
     throw Error('Entfernte Straße noch belegt');
   for(let i=0;i<120;i++){stepTraffic(.02);for(const person of peds)advancePed(person,.02)}
+  // Der hintere Wagen steht in der Liste zuerst. Er darf die Einmündung
+  // nicht vor dem Wagen an der Haltelinie reservieren.
+  G=emptyGrid();
+  for(let x=6;x<=14;x++)G[ix(x,10)].g=1;
+  for(let z=6;z<=14;z++)G[ix(10,z)].g=1;
+  rebuild();
+  gcars.splice(0,gcars.length,car(before,.35),car(before,.76));
+  const [rear,frontCar]=gcars;
+  let frontEntered=false,rearEntered=false;
+  for(let i=0;i<350;i++){
+    stepTraffic(.02);
+    frontEntered ||= frontCar.cell===middle;
+    rearEntered ||= rear.cell===middle;
+  }
+  if(!frontEntered||!rearEntered)throw Error('Hinterer Wagen blockiert die Einmündung');
+
+  G=emptyGrid();
+  for(let x=6;x<=14;x++)G[ix(x,10)].g=1;
+  G[ix(10,9)].g=2;G[ix(11,9)].g=2;
+  rebuild();
+  const gates=[crossings.get(middle),crossings.get(after)];
+  if(gates.some(gate=>!gate))throw Error('Benachbarte Überwege fehlen');
+  gcars.splice(0,gcars.length,car(middle,.5),{...car(after,.5),entry:2,exit:2});
+  for(const gate of gates){gate.wait=true;gate.time=3}
+  stepTraffic(.02);
+  if(gates.filter(gate=>gate.phase==='drain').length!==1)
+    throw Error('Benachbarte Überwege sperren sich gleichzeitig');
+
+  let seed=27;
+  const random=Math.random;
+  Math.random=()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/4294967296);
+  try{
+    gcars.length=0;peds.length=0;
+    generate(7);rebuild();
+    let lastMove=0,crossed=0;
+    for(let i=0;i<15000;i++){
+      const occupiedCells=gcars.map(car=>car.cell);
+      stepTraffic(.02);
+      if(gcars.some((car,j)=>car.cell!==occupiedCells[j]))lastMove=i;
+      for(const person of peds){
+        const previous=person.edge?.gate;
+        advancePed(person,.02);
+        if(previous&&person.edge===null)crossed++;
+      }
+      for(const gate of crossings.values()){
+        if(gate.active&&gcars.some(car=>car.cell===gate.cell))
+          throw Error('Auto auf besetztem Überweg im Langzeittest');
+      }
+      if(i-lastMove>500)throw Error('Zehn Sekunden ohne Fahrzeugbewegung im Startviertel');
+    }
+    if(!crossed)throw Error('Keine Fußgängerquerung im Startviertel');
+  }finally{Math.random=random}
   return true;
 };
 """
@@ -70,7 +122,7 @@ window.checkTraffic=()=>{
             assert not errors, errors
         finally:
             browser.close()
-    print('Parkzugang, Gruppenfreigabe, Bremsen, Abbiegen und Abriss geprüft.')
+    print('Parkzugang, Gruppenfreigabe, Abbiegen, Abriss und fünf Minuten Verkehrsfluss geprüft.')
 
 
 if __name__ == '__main__':

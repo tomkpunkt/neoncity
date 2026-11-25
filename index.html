@@ -1145,12 +1145,31 @@ function stepTraffic(dt){
   }
   for(const gate of crossings.values()){
     gate.time+=dt;
-    if(gate.phase==='cars'&&gate.wait&&gate.time>1.8){gate.phase='drain';gate.time=0}
+    if(gate.phase==='cars'&&gate.wait&&gate.time>1.8){
+      // Zwei benachbarte Überwege dürfen sich beim Räumen nicht gegenseitig sperren.
+      const adjacentBusy=(roadLinks.get(gate.cell)||[]).some(d=>{
+        const adjacent=crossings.get(neighbor(gate.cell,d));
+        return adjacent&&adjacent.phase!=='cars';
+      });
+      if(!adjacentBusy){gate.phase='drain';gate.time=0}
+    }
     if(gate.phase==='drain'&&!occupancy.has(gate.cell)){gate.phase='walk';gate.time=0}
     if((gate.phase==='walk'&&gate.time>1.7&&!gate.active)||(gate.phase==='drain'&&gate.time>5)){
       gate.phase='cars';gate.time=0;
     }
     gate.wait=false;
+  }
+  // Vor der Bewegung den vordersten freien Kandidaten pro Einmündung bestimmen.
+  // Die Reihenfolge im Fahrzeug-Array darf keinen Wartenden an der Haltelinie blockieren.
+  for(const car of gcars){
+    const next=neighbor(car.cell,car.exit);
+    if(roadLinks.get(next).length<3||roadLinks.get(car.cell).length>=3||car.t<=.32)continue;
+    const gate=crossings.get(next);
+    if(gate&&gate.phase!=='cars')continue;
+    if((occupancy.get(next)||[]).some(other=>other.t<.85))continue;
+    if(occupancy.get(car.cell).some(lead=>lead.t>car.t&&(lead.entry===car.entry||lead.exit===car.exit)))continue;
+    const candidate=claims.get(next);
+    if(!candidate||car.t>candidate.t)claims.set(next,car);
   }
   for(const car of gcars){
     const next=neighbor(car.cell,car.exit),gate=crossings.get(next);
@@ -1161,12 +1180,8 @@ function stepTraffic(dt){
     for(const lead of occupancy.get(next)||[]){
       if(lead.entry===car.exit)gap=Math.min(gap,1-car.t+lead.t-.37);
     }
-    // Pro Einmündung nur einen neuen Wagen in den Konfliktbereich lassen.
-    // Wer eine Kreuzung bereits befährt, darf sie immer räumen.
-    if(roadLinks.get(next).length>=3&&roadLinks.get(car.cell).length<3&&car.t>.32){
-      const blocking=(occupancy.get(next)||[]).some(other=>other.t<.85);
-      if(blocking||claims.has(next))gap=Math.min(gap,.76-car.t);
-      else claims.set(next,car);
+    if(roadLinks.get(next).length>=3&&roadLinks.get(car.cell).length<3&&car.t>.32&&claims.get(next)!==car){
+      gap=Math.min(gap,.76-car.t);
     }
     if(gate&&gate.phase!=='cars')gap=Math.min(gap,.75-car.t);
     const target=Math.min(car.cruise*(car.entry===car.exit?1:.76),Math.sqrt(2*1.5*Math.max(0,gap)),Math.max(0,gap)*2.8);
