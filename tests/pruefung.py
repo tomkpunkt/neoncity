@@ -1,4 +1,4 @@
-"""Rauchtest für Neonstadt mit Playwright (Python).
+"""Rauchtest für Neon City mit Playwright (Python).
 
 Aufruf:  python3 tests/pruefung.py [ausgabeordner]
 
@@ -225,6 +225,20 @@ def desktop(p):
     aus = pg.evaluate('NEON.tiltOn')
     pg.evaluate('NEON.setTilt(true)')
     pruefe('Tilt-Shift schaltbar', aus is False and pg.evaluate('NEON.tiltOn') is True)
+
+    # Ruhemodus: ohne Mausbewegung blendet die Oberfläche aus; der erste Klick auf die leere Stelle der Leiste holt sie zurück, ohne zu bauen
+    pg.mouse.move(700, 300)
+    pg.wait_for_timeout(4300)
+    weg = pg.evaluate("document.body.classList.contains('idle')")
+    vorher = pg.evaluate('NEON.snap()')
+    mitte = pg.evaluate("(()=>{const r=document.querySelector('.dock').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()")
+    pg.mouse.click(*mitte)
+    pg.wait_for_timeout(200)
+    da = not pg.evaluate("document.body.classList.contains('idle')")
+    pruefe('Oberfläche blendet ohne Mausbewegung aus, Klick holt sie zurück', weg and da and pg.evaluate('NEON.snap()') == vorher, f'aus {weg}, zurück {da}')
+    pg.wait_for_timeout(4300)
+    pruefe('Maus über der Leiste hält die Oberfläche sichtbar', not pg.evaluate("document.body.classList.contains('idle')"))
+    pruefe('Titel „Neon City“', pg.title() == 'Neon City' and pg.evaluate("document.querySelector('.brand h1').textContent") == 'Neon City', pg.title())
     pruefe('Keine Seitenfehler (Desktop)', not meldungen, '; '.join(meldungen[:3]))
     browser.close()
 

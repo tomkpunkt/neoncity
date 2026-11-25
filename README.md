@@ -1,8 +1,10 @@
-# Neonstadt
+# Neon City
 
 Ein ruhiges Aufbauspiel im Browser: Du baust eine Neon-Megastadt auf nassem, spiegelndem Wasser. Es gibt kein Geld, keine Ziele und keinen Druck, nur Bauen, Formen und Zuschauen. Vorbilder sind [Townscaper](https://store.steampowered.com/app/1291340/Townscaper/), [Altstadt](https://store.steampowered.com/app/5123730/Altstadt/) und [Miniopolis](https://store.steampowered.com/app/3814960/miniopolis/).
 
-![Neonstadt: Startviertel bei Nacht und Regen, mit Tilt-Shift](docs/vorschau.jpg)
+![Neon City: Startviertel bei Nacht und Regen, mit Tilt-Shift](docs/vorschau.jpg)
+
+![Nahansicht: Fassaden mit Relief, Fenster mit Innenräumen](docs/nah.jpg)
 
 ## Spielen
 
@@ -26,6 +28,8 @@ Das Spiel läuft auch als Claude-Artefakt. Über GitHub Pages lässt es sich dir
 | Schieben | `WASD` oder Pfeiltasten halten (mit `Shift` schneller), mittlere Maustaste | – |
 
 Die Kamera gleitet beim Halten der Tasten weich los und rollt nach dem Loslassen aus.
+
+Bewegst du die Maus gut 3 Sekunden nicht, blendet sich die Oberfläche aus und der Mauszeiger verschwindet. Mausbewegung, Tippen oder eine Taste holen sie zurück; die Kamerasteuerung mit der Tastatur zählt nicht dazu, so kannst du ohne Leisten durch die Stadt fahren. Ruht die Maus über einer Leiste oder ist das Menü offen, bleibt alles sichtbar. Tippst du auf eine ausgeblendete Leiste, erscheint sie nur und es wird nichts darunter gebaut.
 
 Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wiederholen, `T` Tilt-Shift, `N` Stimmung, `R` Regen, `M` Ton, `Leertaste` Rundflug, `P` Fotomodus, `Esc` abbrechen.
 
@@ -56,11 +60,12 @@ Nachbarn gleicher Farbe und gleichen Stils verschmelzen zu einem Gebäude. Je na
 - Leuchtschilder, große Hochformat-Werbung an hohen Fassaden, Klimageräte, Balkone, Vordächer mit Lampions,
 - auf den Dächern Wassertanks, Antennen mit Blinklicht, Helipads und Werbetafeln,
 - Licht unter Überhängen und **Stützen** je nach Länge des Überhangs:
-  - ein Feld weit: ein L-Verbinder an der Wand des tragenden Gebäudes,
+  - ein Feld weit: schlanke L-Verbinder an den beiden Ecken der tragenden Wand, damit die Fenster frei bleiben,
   - länger: alle zwei Felder eine Stütze, vom äußeren Ende gezählt (2 Felder → unter Feld 2, 3 → 3, 4 → 2 und 4, 5 → 3 und 5, 6 → 2, 4 und 6 …),
   - über einer Straße statt der Stütze ein Portal mit Pfosten am Straßenrand; bei breiten Straßen über beide Spuren,
   - ganz frei schwebende Teile stehen auf Stützen bis zum Boden oder ins Wasser,
-  - jeder Stil hat eigene Stützen: Konzern schlanke Stahlsäulen mit Leuchtringen, Megablock Betonpfeiler mit Kapitell, Container Gittermasten mit Kreuzverstrebung, Pagode rote Säulen und Torii-Portale mit Konsolen und Lampions,
+  - jeder Stil hat eigene Stützen: Konzern schlanke Stahlsäulen mit Leuchtringen und leuchtender Strebe, Megablock Betonpfeiler mit Kapitell und Betonkonsolen, Container rostige Stahlpfeiler mit Flanschplatten und orangem Warnband, Pagode rote Säulen und Torii-Portale mit Konsolen und Lampions,
+- Simse zwischen den Etagen und Fensterbänke aus Beton,
 - Glas-Skywalks zwischen Türmen und Lampionketten zwischen Containern,
 - Suchscheinwerfer auf den höchsten Türmen.
 
@@ -74,21 +79,26 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 - **Tone.js 14.8.49** für Synth-Pad, Bass und Regenrauschen. Jede Etage spielt beim Bauen einen höheren Ton der Pentatonik.
 - **Stadtmodell**: Jedes Feld hat eine Bodenart `g` und eine Etagen-Maske `m`, in der Bit `k` für Etage `k` steht. Damit sind Überhänge, Löcher, Durchgänge und Brücken dasselbe: Etagen, unter denen nichts liegt.
 - **Rendering**: Jede Bauteilart ist ein `InstancedMesh`-„Eimer“ mit einem Draw-Call, insgesamt 65 Eimer. Leere Eimer werden nicht gezeichnet. Nach jeder Änderung wird die ganze Stadt aus dem Raster neu aufgebaut, das sind höchstens 20 × 20 × 18 Felder. Ein in `onBeforeCompile` eingesetzter Vertex-Shader lässt geänderte Etagen federnd aufploppen: Drehpunkt und Zeitpunkt je Instanz, und nur ab der geänderten Etage. Fassaden bekommen Welt-UVs, damit Texturen über verschmolzene Gebäude und runde Ecken durchlaufen. Ein Streulicht-Term färbt Wände in Bodennähe mit Neon ein.
+- **Fassaden**: Jeder Stil hat eine eigene 512er-Textur mit passender Höhen- und Rauheitskarte: Konzern Metallpaneele mit Deckenbändern, Megablock Beton mit Fugen, Rissen und Regenschlieren unter den Fenstern, Container Wellblech mit Rost und Schablonenschrift, Pagode Holzbretter mit lackierten Balken. Höhen- und Rauheitskarte laufen über dieselben Welt-UVs wie die Farbe. Die Gebäudefarben sind entsättigt, die Nachtbeleuchtung von oben ist gedämpft, damit Dächer dunkelgrau statt lila wirken.
+- **Innenraum-Shader** (Interior Mapping): Hinter jeder Scheibe liegt ein gedachter Raum, größer als das Fenster. Der Blickstrahl trifft Rückwand, Seitenwand, Boden oder Decke; daraus entstehen Schrank, Bild, Fernseher, Teppich und Deckenlampe, in Läden Regale mit Waren. Kanten sind weich gezeichnet, der Raum verschwimmt nach hinten im Dunst, und mit der Entfernung bleiben nur Lichtfarbe und Helligkeit übrig. Manche Fenster haben Vorhänge oder Jalousien, die Scheibe spiegelt den Himmel.
+  - **Silhouetten**: In vielen hellen Räumen steht oder sitzt jemand. Wer steht, bleibt eine Weile, geht weiter und verlässt manchmal den sichtbaren Teil des Raums. Die Figur wirft einen weichen Schatten auf die Rückwand, hinter Vorhängen sieht man nur den Schatten.
+  - **Licht an und aus**: Jedes Fenster schaltet in seinem eigenen Takt (8 bis 30 Sekunden) an oder aus, beim Einschalten flackert die Röhre kurz. Ab und zu geht auch in einem dunklen Fenster Licht an. Fernseher tauchen den Raum in wechselndes blaues Licht.
+  - Der Zufallswert je Fenster kommt als `flat`-Varying aus der Position der Instanz, damit er über die Fläche nicht rauscht.
 - **Eckformen**: Ein Stockwerk mit geformter Ecke besteht aus vier Viertel-Prismen (eckig, schräg, rund, hohl), die je nach Ecke gedreht und skaliert werden. Innenecken bekommen ein Füllstück im leeren Diagonalfeld (Dreieck oder Viertelkreis-Hohlkehle). Die Fenster der angrenzenden Wände werden passend gekürzt.
 - **Straßen**: Jedes Straßenfeld wird eingeordnet als gerade (x oder z), Kreuzung oder Ende/Kurve. Dafür zählen nur Straßenfelder, Plätze daneben ändern die Einordnung nicht. Zwei gerade Felder gleicher Richtung nebeneinander ergeben eine breite Straße. Liegt in Fahrtrichtung eine Kreuzung oder ein Platz, kommt ein Zebrastreifen dazu.
-- **Stützen**: Eine Breitensuche je Etage geht von den getragenen Feldern aus, also Feldern mit einer Etage darunter. Sie misst für jede Überhang-Unterseite den Abstand `t` und die Länge `n` der Reihe nach außen. Bei `n = 1` entsteht ein L-Verbinder, sonst eine Stütze, wenn `t ≥ 2` und `n − t` gerade ist.
+- **Stützen**: Eine Breitensuche je Etage geht von den getragenen Feldern aus, also Feldern mit einer Etage darunter. Sie misst für jede Überhang-Unterseite den Abstand `t` und die Länge `n` der Reihe nach außen. Bei `n = 1` entstehen L-Verbinder an den Wandecken, sonst eine Stütze, wenn `t ≥ 2` und `n − t` gerade ist.
 - **Zufall**: Alles, was zum Bau gehört, kommt aus einem Hash von Feld, Etage und Richtung. Dieselbe Stadt sieht deshalb nach dem Laden genauso aus. `Math.random` steuert nur die Optik, also Partikel, Fensterflackern, Verkehr und Texturen.
 
 ### Spielstand
 
-- Wird automatisch in `localStorage` gespeichert, Schlüssel `neonstadt-v2`. Ein alter Stand unter `neonstadt-v1` wird beim ersten Start gelesen und umgebaut. Effektstufe und Tilt-Shift liegen unter `neonstadt-q` und `neonstadt-tilt`.
+- Wird automatisch in `localStorage` gespeichert, Schlüssel `neonstadt-v2` (der Name stammt aus der Zeit vor der Umbenennung und bleibt, damit gespeicherte Städte erhalten bleiben). Ein alter Stand unter `neonstadt-v1` wird beim ersten Start gelesen und umgebaut. Effektstufe und Tilt-Shift liegen unter `neonstadt-q` und `neonstadt-tilt`.
 - Format 2: `{v:2, app:'neonstadt', n:20, name, cells:[[index, g, m, s, c, schilder?, werbetafel?, ecken?], …]}`. Dabei ist `g` die Bodenart (0 Wasser, 1 Straße, 2 Park, 3 Platz) und `m` die Etagen-Maske. `s` ist der Stil, `c` die Farbe, `schilder` eine Liste von `[Richtung, Etage, Motiv]` und `ecken` die Form der vier Ecken (0 eckig, 1 schräg, 2 rund, 3 hohl).
 - Format 1 (`[index, k, h, s, c, a, …]` mit Höhe `h` und Durchgang `a`) wird beim Laden in eine Maske umgerechnet.
 - Der **Stadt-Code** im Menü ist das JSON als Base64 mit dem Präfix `NEON2:`. Codes mit `NEON1:` und reines JSON werden ebenfalls angenommen. Beim Laden werden alle Felder geprüft und begrenzt.
 
 ### Testschnittstelle
 
-`window.NEON` bietet `G`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
+`window.NEON` bietet `G`, `idleState`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
 
 ## Prüfen
 
@@ -97,7 +107,7 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 30 Punkte:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 33 Punkte:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
@@ -110,12 +120,15 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - Straße neben einem Platz bleibt gerade,
 - Abriss-Rechteck,
 - weiches Gleiten mit der Tastatur, Tilt-Shift-Schalter,
+- Ausblenden der Oberfläche ohne Mausbewegung, Zurückholen per Klick ohne zu bauen, sichtbar bleiben über der Leiste,
+- Titel „Neon City“,
 - Tippen am Handy,
 - keine Seitenfehler.
 
 **Stand 2026-11-25** (Commit mit diesem README):
-- **Ausgeführt:** alle 30 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
-- **Nicht geprüft:** die Bildrate auf echter Grafikkarte, der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
+- **Ausgeführt:** alle 33 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Angesehen:** Nahaufnahmen aller vier Stile mit Innenräumen, Silhouetten über mehrere Sekunden und Stützen je Stil.
+- **Nicht geprüft:** die Bildrate auf echter Grafikkarte (der Innenraum-Shader kostet pro Fensterpixel etwas mehr als vorher), der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.
 
 ## Herkunft
