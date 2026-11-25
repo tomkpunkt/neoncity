@@ -1436,23 +1436,34 @@ function rectPlan(g){const r={i0:Math.min(g.i0,g.i1),i1:Math.max(g.i0,g.i1),j0:M
   else if(t==='corner'){y1=D+mh*H;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m)c.cn=[0,1,2,3].map(()=>state.corner)})}
   else return null;
   return{cells:cells.map(a=>a[2]),run,box:{x:(wx(r.i0)+wx(r.i1))/2,z:(wz(r.j0)+wz(r.j1))/2,y:(y0+y1)/2,sx:r.i1-r.i0+1.02,sy:y1-y0,sz:r.j1-r.j0+1.02},col:TCOL[t],w:r.i1-r.i0+1,h:r.j1-r.j0+1,snd:t==='erase'?'down':'up',lv:Lb,pop:t==='build'||t==='erase'?Lb:0}}
-// ============================================================ Vorschau: Geist-Kasten und leuchtende Push/Pull-Fläche
+// ============================================================ Vorschau: Geist-Kasten und Auswahl
 const ghostMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending});
 const ghost=new THREE.Mesh(GEO.box,ghostMat),ghostEdge=new THREE.LineSegments(new THREE.EdgesGeometry(GEO.box),new THREE.LineBasicMaterial({color:0xffffff,transparent:true}));
 ghost.add(ghostEdge);ghost.visible=false;ghost.renderOrder=5;scene.add(ghost);const gT={p:new THREE.Vector3(),s:new THREE.Vector3(1,1,1)};let gSnap=true;
 function showGhost(pl){if(!pl||!pl.box){ghost.visible=false;return}const b=pl.box;gT.p.set(b.x,b.y,b.z);gT.s.set(b.sx,b.sy,b.sz);if(!ghost.visible||gSnap){ghost.position.copy(gT.p);ghost.scale.copy(gT.s)}gSnap=false;ghost.visible=true;
   const c=pl.col;ghostMat.color.setRGB(c[0]*.5,c[1]*.5,c[2]*.5);ghostEdge.material.color.setRGB(...c)}
 const hlMat=new THREE.MeshBasicMaterial({color:new THREE.Color(1.4,.25,1.05),transparent:true,opacity:.4,blending:THREE.AdditiveBlending,depthWrite:false});
-const hl=new THREE.InstancedMesh(GEO.box,hlMat,N*N);hl.count=0;hl.frustumCulled=false;hl.renderOrder=6;scene.add(hl);
+// Pro Spalte sind bei Lücken bis zu ceil(MAXH/2) getrennte Abschnitte möglich.
+const hl=new THREE.InstancedMesh(GEO.box,hlMat,N*N*Math.ceil(MAXH/2));hl.count=0;hl.frustumCulled=false;hl.renderOrder=6;scene.add(hl);
 const hlLine=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:new THREE.Color(3,.7,2.4),transparent:true}));hlLine.frustumCulled=false;hlLine.renderOrder=7;hlLine.visible=false;scene.add(hlLine);
 function showRegion(r){if(!r||!r.cells.length){hl.count=0;hlLine.visible=false;return}
   const M=hl.instanceMatrix.array,pos=[],set=new Set(r.cells),seg=(...a)=>pos.push(...a);let n=0;
-  for(const ci of r.cells){const c=G[ci],i=ci%N,j=(ci/N)|0,x=wx(i),z=wz(j);if(!hasF(c,r.k))continue;
+  for(const ci of r.cells){const c=G[ci],i=ci%N,j=(ci/N)|0,x=wx(i),z=wz(j);
+    if(r.face==='building'){
+      for(let k=0;k<MAXH;k++){
+        if(!hasF(c,k))continue;
+        const [,last]=segOf(c.m,k),height=(last-k+1)*H;
+        setM(M,n++*16,x,D+k*H+height/2,z,1.016,height+.024,1.016,0);
+        k=last;
+      }
+      continue;
+    }
+    if(!hasF(c,r.k))continue;
     if(r.face!=='side'){const y=r.face==='top'?D+(r.k+1)*H+.016:D+r.k*H-.016;setM(M,n++*16,x,y,z,1,.02,1,0);
       for(let d=0;d<4;d++){const ni=i+DX[d],nj=j+DZ[d];if(inb(ni,nj)&&set.has(ix(ni,nj))&&hasF(G[ix(ni,nj)],r.k))continue;const ex=x+DX[d]*.5,ez=z+DZ[d]*.5;seg(ex+TX[d]*.5,y,ez+TZ[d]*.5,ex-TX[d]*.5,y,ez-TZ[d]*.5)}}
     else{const d=r.d,[a,b]=r.one?[r.k,r.k]:segOf(c.m,r.k),y0=D+a*H,y1=D+(b+1)*H,o=.5-GAP+.014,px=x+DX[d]*o,pz=z+DZ[d]*o;setM(M,n++*16,px,(y0+y1)/2,pz,d%2?1:.02,y1-y0,d%2?.02:1,0);
       const lx=px+TX[d]*.5,lz=pz+TZ[d]*.5,rx=px-TX[d]*.5,rz=pz-TZ[d]*.5;seg(lx,y0,lz,rx,y0,rz);seg(lx,y1,lz,rx,y1,rz);seg(lx,y0,lz,lx,y1,lz);seg(rx,y0,rz,rx,y1,rz)}}
-  hl.count=n;hl.instanceMatrix.needsUpdate=true;hlLine.geometry.dispose();hlLine.geometry=new THREE.BufferGeometry();hlLine.geometry.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));hlLine.visible=pos.length>0}
+  hl.count=n;if(n){hl.instanceMatrix.clearUpdateRanges();hl.instanceMatrix.addUpdateRange(0,n*16);hl.instanceMatrix.needsUpdate=true}hlLine.geometry.dispose();hlLine.geometry=new THREE.BufferGeometry();hlLine.geometry.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));hlLine.visible=pos.length>0}
 // ============================================================ Eingabe: Pointer Events für Maus, Stift und Finger; Tastatur weich
 const lbl=$('#lbl');
 function label(t,x,y){if(!t){lbl.style.display='none';return}lbl.textContent=t;lbl.style.display='block';lbl.style.left=x+'px';lbl.style.top=y+'px'}
@@ -1460,7 +1471,15 @@ const ptrs=new Map();let gest=null,lpT=0,hoverXY=null,hoverReq=0,lastPtr='mouse'
 function apply(pl){pl.run();const now=T;(pl.cells||[]).forEach(n=>{BIRTH[n]=now;BLV[n]=pl.pop||0});rebuild();autosave();
   const b=pl.box;if(b)burst(b.x,b.y+b.sy/2,b.z,pl.col,pl.snd==='down'?14:24);else burstCells(pl.cells);sfx(pl.snd,pl.lv);if(pl.snd==='down')glitch(.5);hintStep()}
 function doAction(x,y,erase){const pl=makePlan(pick(x,y),erase?'erase':state.tool);if(!pl){sfx('nope');return}pushUndo();apply(pl);if(lastPtr==='mouse')hover(x,y)}
-function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){ghost.visible=false;const r=regionOf(hit);showRegion(r);if(!r&&hit&&hit.ground&&isPk(G[ix(hit.i,hit.j)]))showGhost(makePlan(hit,'shape'));return}showRegion(null);showGhost(makePlan(hit,state.tool))}
+function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){ghost.visible=false;const r=regionOf(hit);showRegion(r);if(!r&&hit&&hit.ground&&isPk(G[ix(hit.i,hit.j)]))showGhost(makePlan(hit,'shape'));return}
+  const pl=makePlan(hit,state.tool);
+  if(state.tool==='paint'){
+    ghost.visible=false;
+    showRegion(pl?{face:'building',cells:pl.cells}:null);
+    return;
+  }
+  showRegion(null);showGhost(pl)
+}
 // Ruhemodus: wird die Maus nicht bewegt, blendet die Oberfläche nach kurzer Zeit aus
 const IDLE_MS=3200;let idle=false,lastAct=performance.now(),mouseXY=null;
 const uiBoxes=()=>[...document.querySelectorAll('.top .brand,.top .btns,.dock')].map(el=>el.getBoundingClientRect());
@@ -1474,7 +1493,7 @@ addEventListener('pointerdown',e=>{   // erster Tipp auf eine ausgeblendete Leis
   if(idle&&e.target===canvas){const x=e.clientX,y=e.clientY;if(uiBoxes().some(r=>x>=r.left-10&&x<=r.right+10&&y>=r.top-10&&y<=r.bottom+10)){e.stopImmediatePropagation();e.preventDefault();wake();return}}
   wake()},true);
 addEventListener('pointermove',e=>{mouseXY=e.pointerType==='mouse'?[e.clientX,e.clientY]:null;wake()},{capture:true,passive:true});
-addEventListener('pointerout',e=>{if(!e.relatedTarget)mouseXY=null},{passive:true});
+addEventListener('pointerout',e=>{if(!e.relatedTarget){mouseXY=null;hoverXY=null;if(!gest){ghost.visible=false;showRegion(null)}}},{passive:true});
 addEventListener('keydown',e=>{if(!MOVEK.includes(e.key.toLowerCase()))wake()},true);
 addEventListener('pointerdown',e=>{
   if(e.target!==canvas)return;lastPtr=e.pointerType;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -1497,7 +1516,7 @@ addEventListener('pointermove',e=>{
   if(gest&&e.pointerId===gest.id){if(!gest.moved&&Math.hypot(e.clientX-gest.x,e.clientY-gest.y)>7){gest.moved=true;clearTimeout(lpT)}
     if(gest.kind==='pull'&&gest.moved)pullMove(e);else if(gest.kind==='parkpull'&&gest.moved)parkMove(e);else if(gest.kind==='rect'&&gest.moved)rectMove(e);else if(gest.moved&&(gest.kind==='orbit'||gest.kind==='right')){ghost.visible=false;showRegion(null)}return}
   if(e.pointerType==='mouse'&&!e.buttons&&e.target===canvas){hoverXY=[e.clientX,e.clientY];if(!hoverReq)hoverReq=requestAnimationFrame(()=>{hoverReq=0;if(hoverXY)hover(...hoverXY)})}
-  else if(e.pointerType==='mouse'&&e.target!==canvas&&!gest){ghost.visible=false;showRegion(null)}});
+  else if(e.pointerType==='mouse'&&e.target!==canvas&&!gest){hoverXY=null;ghost.visible=false;showRegion(null)}});
 function endPtr(e,cancel){ptrs.delete(e.pointerId);clearTimeout(lpT);if(!ptrs.size){controls.enableRotate=true;controls.enablePan=true}
   if(!gest||e.pointerId!==gest.id)return;const g=gest;gest=null;label(null);
   if(cancel){if((g.kind==='pull'||g.kind==='parkpull')&&g.baseSnap){restore(g.baseSnap);undoS.pop();updUndo()}ghost.visible=false;showRegion(null);return}
@@ -1512,7 +1531,7 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 function cancelGesture(){if(!gest)return;clearTimeout(lpT);if((gest.kind==='pull'||gest.kind==='parkpull')&&gest.baseSnap){restore(gest.baseSnap);undoS.pop();updUndo()}gest=null;ghost.visible=false;showRegion(null);label(null)}
 function burstCells(cells){const c=TCOL[state.tool];(cells||[]).slice(0,12).forEach(n=>{const cc=G[n];burst(wx(n%N),D+(cc&&cc.m?topOf(cc.m)*H:0.1),wz((n/N)|0),c,8)})}
 function rectMove(e){const g=gest,cell=planeCell(e.clientX,e.clientY,g.yP);if(!cell)return;[g.i1,g.j1]=cell;if(g.i1!==g.i0||g.j1!==g.j0)g.active=true;if(!g.active)return;
-  const pl=rectPlan(g);showGhost(pl);label(`${pl.w} × ${pl.h}`,e.clientX,e.clientY)}
+  const pl=rectPlan(g);if(g.tool==='paint')showRegion(null);showGhost(pl);label(`${pl.w} × ${pl.h}`,e.clientX,e.clientY)}
 function curRegion(g){if(g.face==='top'){const k=g.k+g.delta;return{face:'top',k,cells:g.cells.filter(n=>hasF(G[n],k))}}
   if(g.face==='bottom'){const k=g.k-g.delta;return{face:'bottom',k,cells:g.cells.filter(n=>hasF(G[n],k))}}
   const out=[];for(const n of g.cells){const i=n%N,j=(n/N)|0;if(g.delta>=0){for(let t=g.delta;t>=0;t--){const a=i+DX[g.d]*t,b=j+DZ[g.d]*t;if(inb(a,b)&&hasF(G[ix(a,b)],g.k)){out.push(ix(a,b));break}}}
