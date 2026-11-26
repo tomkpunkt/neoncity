@@ -57,7 +57,7 @@ Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wieder
   | **Reihe** | ein senkrechter Streifen von einem Feld Breite | eine Reihe von Feldern, waagerecht im Bild |
   | **Block** | ein einzelnes Feld auf dieser Etage | ein einzelnes Feld |
 - **Kanten**: Außenecken werden **eckig**, **schräg**, **rund** (nach außen gewölbt) oder **hohl** (nach innen gezogen). **Innenecken** von L- oder U-förmigen Gebäuden werden schräg oder rund ausgefüllt. Ein Klick auf die Dachmitte ändert das ganze Gebäude, Ziehen eine ganze Fläche.
-- **Straße**: Wahlweise Straße oder Platz. Zwei Straßenfelder nebeneinander werden eine **breite Straße** mit doppelter Mittellinie, gestrichelten Fahrstreifen und Zebrastreifen an Kreuzungen. Auf einem Gebäude wird das Erdgeschoss zum Durchgang mit Neon-Bogen. Auf einem Dach entsteht eine **Magnetbahn**: Ein Klick legt ein Stück Fahrweg, Ziehen legt ihn über mehrere gleich hohe Dächer. Benachbarte Dächer gleicher Höhe verbinden sich zu einer Strecke, an den Enden stehen Haltestellen mit Bahnsteig und Glasdach. Auf jeder Strecke ab zwei Feldern pendelt ein Zug, bremst an den Haltestellen und wartet kurz; auf einem Ring fährt er im Kreis.
+- **Straße**: Wahlweise Straße oder Platz. Zwei Straßenfelder nebeneinander werden eine **breite Straße** mit doppelter Mittellinie, gestrichelten Fahrstreifen und Zebrastreifen an Kreuzungen. Auf einem Gebäude wird das Erdgeschoss zum Durchgang mit Neon-Bogen. Auf einem Dach entsteht eine **Magnetbahn**: Ein Klick legt ein Stück Fahrweg, Ziehen legt ihn über mehrere gleich hohe Dächer. Die Bahn fährt immer auf einer Ebene, ohne Schrägen: Dächer gleicher Höhe verbinden sich zu einer Strecke, auch über Lücken von bis zu drei Feldern in gerader Linie, etwa über eine Straße oder ein niedrigeres Haus. Dort entsteht eine Brücke mit dunklem Träger; ab vier Feldern Spannweite stehen Stelzen auf dem Boden oder dem Dach darunter. Ein Hindernis in Fahrhöhe verhindert die Brücke. An den Enden stehen Haltestellen mit Bahnsteig und Glasdach. Auf jeder Strecke ab zwei Feldern pendelt ein Zug, bremst an den Haltestellen und wartet kurz; auf einem Ring fährt er im Kreis.
 - **Park**: Leuchtbäume und Glühwürmchen. Auf einem Dach entsteht ein **Dachgarten** (Klick oder über mehrere gleich hohe Dächer ziehen, nochmal klicken entfernt ihn). Die Ausstattung hängt vom Stil und der Höhe ab:
   - Konzern: Rasen mit Glasgeländer und Leuchtweg, Zypressen und Bank; ab 8 Etagen Pool mit Palme,
   - Megablock: Hochbeete mit Gemüse und Regentonne; mittelhoch eine Pergola mit Laterne, ab 8 Etagen ein Gewächshaus mit Pflanzenlicht,
@@ -129,7 +129,7 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 51 Punkte, darunter:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 52 Punkte, darunter:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
@@ -145,13 +145,13 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - Ausblenden der Oberfläche ohne Mausbewegung, Zurückholen per Klick ohne zu bauen, sichtbar bleiben über der Leiste,
 - Titel „Neon City“,
 - Zielhilfe des Neon-Werkzeugs (Kontur und Etikett für Wand und Dach),
-- Schilder ziehen (Doppelschild, Leinwand, doppelte Werbetafel), Dachgarten, Magnetbahn mit Zug, alles auch nach dem Stadt-Code,
+- Schilder ziehen (Doppelschild, Leinwand, doppelte Werbetafel), Dachgarten, Magnetbahn mit Zug und Brücke über eine Lücke, alles auch nach dem Stadt-Code,
 - Zeitregler (Mitte = Mittag, Tageslicht), Wetter-Menü mit Mehrfachauswahl, alte Knöpfe für Regen und Stimmung entfernt,
 - Tippen am Handy,
 - keine Seitenfehler.
 
 **Stand 2026-11-26** (Commit mit diesem README):
-- **Ausgeführt:** alle 51 Prüfungen grün, dazu `tests/strassenleben.py`, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Ausgeführt:** alle 52 Prüfungen grün, dazu `tests/strassenleben.py`, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
 - **Angesehen:** Morgen, Mittag, Abend und Nacht; Schnee, Nebel (Tag und Nacht), Smog (Tag und Nacht), Gewitter und Polarlicht; das Wetter-Menü auf Desktop und Handy.
 - **Nicht geprüft:** die Bildrate auf echter Grafikkarte (der Innenraum-Shader kostet pro Fensterpixel etwas mehr als vorher), der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.
