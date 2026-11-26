@@ -316,6 +316,8 @@ def desktop(p):
     rt = pg.evaluate('[NEON.G[212].rt,NEON.G[214].rt,NEON.G[215].rt,NEON.G[216].rt,NEON.trains.length]')
     pruefe('Dachgarten und Magnetbahn mit Zug', rt == [1, 2, 2, 2, 1], str(rt))
     pruefe('Schilder, Dachgarten und Bahn überstehen den Stadt-Code', pg.evaluate('(()=>{const s=NEON.snap();NEON.load(s);NEON.rebuild();return NEON.snap()===s&&NEON.G[212].rt===1&&NEON.G[210].sg[1].length===5})()'))
+    br = pg.evaluate(LEER + ";(()=>{const G=NEON.G;G[202]={g:0,m:15,s:1,c:2,sg:[],rt:2};G[206]={g:0,m:15,s:1,c:2,sg:[],rt:2};G[204]={g:0,m:3,s:0,c:1,sg:[]};G[230]={g:0,m:15,s:1,c:2,sg:[],rt:2};G[250]={g:0,m:31,s:1,c:2,sg:[],rt:2};G[240]={g:0,m:255,s:1,c:2,sg:[],rt:2};NEON.rebuild();return [NEON.trains.length,+NEON.trains[0].len.toFixed(2)]})()")
+    pruefe('Magnetbahn: Brücke über drei Felder Lücke (auch über ein niedriges Haus), nur auf einer Ebene', br[0] == 1 and 3.99 < br[1] < 4.01, str(br))
     pg.evaluate("NEON.setTool('build')")
 
     # Tageszeit-Regler und Wetter-Auswahl mit Mehrfachauswahl

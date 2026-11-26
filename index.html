@@ -822,6 +822,7 @@ class Bucket{
   grow(){const a=this.ac*2,g=(arr,s)=>{const b=new Float32Array(a*s);b.set(arr);return b};this.M=g(this.M,16);this.C=g(this.C,3);this.P=g(this.P,4);if(this.A)this.A=g(this.A,4);this.ac=a}
   add(x,y,z,sx,sy,sz,ry,col,ci,atl){if(this.n>=this.ac)this.grow();const n=this.n++,p=n*4,bl=BLV[ci],on=bl<=0||Math.floor((y-D)/H+1e-3)>=bl;setM(this.M,n*16,x,y,z,sx,sy,sz,ry);this.C[n*3]=col[0];this.C[n*3+1]=col[1];this.C[n*3+2]=col[2];
     this.P[p]=wx(ci%N);this.P[p+1]=bl>0?D+bl*H:0;this.P[p+2]=wz((ci/N)|0);this.P[p+3]=on?BIRTH[ci]:-99;if(this.A){this.A[p]=atl[0];this.A[p+1]=atl[1];this.A[p+2]=atl[2];this.A[p+3]=atl[3]}}
+  addR(x,y,z,sx,sy,sz,ry,rise,col,ci){this.add(x,y,z,sx,sy,sz,ry,col,ci);this.M[(this.n-1)*16+1]=rise}
   commit(){const n=this.n;
     if(!this.mesh||this.cap<n){const cap=Math.max(32,Math.ceil(n*1.4));if(this.mesh){scene.remove(this.mesh);this.mesh.dispose();this.geo.dispose()}
       this.geo=this.base.clone();this.geo.setAttribute('aPop',new THREE.InstancedBufferAttribute(new Float32Array(cap*4),4));if(this.A)this.geo.setAttribute('aAtl',new THREE.InstancedBufferAttribute(new Float32Array(cap*4),4));
@@ -1232,13 +1233,27 @@ function roofGarden(c,i,j,ci,tp,top,rx,rz,w,dz,Gl){const st=c.s,h=(t,k)=>hash(i,
   if(hi)B.cyl.add(rx-.25,y+.25,rz+.2,.2,.02,.2,.4,DARK2,ci)}
 // Magnetbahn auf Dächern gleicher Höhe: Fahrweg auf Stützen, Endhaltestellen mit Bahnsteig
 const RAILC=[.42,.42,.46];
-const railNb=(i,j,tp)=>[0,1,2,3].filter(d=>{const n=at(i+DX[d],j+DZ[d]);return n&&n.rt===2&&n.m&&topOf(n.m)===tp});
-function roofRail(c,i,j,ci,tp,top,Gl){const x=wx(i),z=wz(j),y=top+.2,nb=railNb(i,j,tp),col=mul(Gl,2.2);
+// Strecke: Dächer mit Magnetbahn verbinden sich mit dem nächsten gleich hohen Bahndach in gerader Linie (bis 3 Felder Lücke), die Bahn bleibt immer auf einer Ebene.
+// Über Lücken entsteht eine Brücke; ist die freie Spannweite zu groß, kommen Stelzen dazu.
+const railY=lv=>D+lv*H+.2,isRail=c=>c&&c.rt===2&&c.m;
+function railFree(i,j,d,gap,ya,yb){for(let t=1;t<=gap;t++){const c=G[ix(i+DX[d]*t,j+DZ[d]*t)],y=ya+(yb-ya)*t/(gap+1);
+  if(c.m)for(let k=0;k<MAXH;k++)if(hasF(c,k)&&D+k*H<y+.45&&D+(k+1)*H>y-.1)return false}return true}
+function railEdges(i,j){const c=at(i,j);if(!isRail(c))return[];const la=topOf(c.m),out=[];
+  for(let d=0;d<4;d++)for(let t=1;t<=4;t++){const a=i+DX[d]*t,b=j+DZ[d]*t;if(!inb(a,b))break;const n=G[ix(a,b)];
+    if(isRail(n)){const lb=topOf(n.m);if(lb===la&&(t===1||railFree(i,j,d,t-1,railY(la),railY(lb))))out.push({d,n:ix(a,b),gap:t-1,lb});break}}
+  return out}
+function railBeam(ax,ay,az,bx,by,bz,col,ci,deck){const X=Math.abs(bx-ax)>Math.abs(bz-az),l=Math.abs(X?bx-ax:bz-az),mx=(ax+bx)/2,my=(ay+by)/2,mz=(az+bz)/2,rise=(X?bx>ax:bz>az)?by-ay:ay-by,ry=X?0:-Math.PI/2;
+  B.conc.addR(mx,my,mz,l,.06,.2,ry,rise,RAILC,ci);
+  for(const sd of[-1,1])B.glow.addR(mx+(X?0:sd*.105),my+.032,mz+(X?sd*.105:0),l,.012,.012,ry,rise,col,ci);
+  if(deck){B.dark.addR(mx,my-.075,mz,l,.07,.1,ry,rise,DARK2,ci);for(const sd of[-1,1])B.dark.addR(mx+(X?0:sd*.1),my-.04,mz+(X?sd*.1:0),l,.02,.015,ry,rise,DARK,ci)}}
+function roofRail(c,i,j,ci,tp,top,Gl){const x=wx(i),z=wz(j),y=railY(tp),eg=railEdges(i,j),col=mul(Gl,2.2);
   B.conc.add(x,top+.1,z,.09,.2,.09,0,RAILC,ci);B.conc.add(x,y,z,.2,.06,.2,0,RAILC,ci);
-  const dirs=nb.length?nb:[0,2];
-  for(const d of dirs){const l=nb.length?.5:.32,mx=x+DX[d]*l/2,mz=z+DZ[d]*l/2,X=d%2===0;B.conc.add(mx,y,mz,X?l:.2,.06,X?.2:l,0,RAILC,ci);
-    for(const sd of[-1,1])B.glow.add(mx+(X?0:sd*.105),y+.032,mz+(X?sd*.105:0),X?l:.012,.012,X?.012:l,0,col,ci)}
-  if(nb.length<=1){const ax=nb.length?(nb[0]%2===0?0:1):1;   // Haltestelle: Bahnsteige beidseitig, Glasdach, Leuchtschild
+  for(const e of eg){if(e.d!==0&&e.d!==1)continue;const bi=e.n%N,bj=(e.n/N)|0,yb=railY(e.lb);railBeam(x,y,z,wx(bi),yb,wz(bj),col,ci,e.gap>0);
+    if(e.gap>2){const span=e.gap+1,cnt=Math.ceil(span/3)-1;   // Stelzen: freie Spannweite höchstens etwa drei Felder
+      for(let q=1;q<=cnt;q++){const t=Math.round(q*span/(cnt+1)),a=i+DX[e.d]*t,b=j+DZ[e.d]*t,cc=G[ix(a,b)],yt=y+(yb-y)*t/span-.11,yb0=cc.m?D+topOf(cc.m)*H:cc.g?D+.01:0;
+        B.conc.add(wx(a),(yt+yb0)/2,wz(b),.1,yt-yb0,.1,0,RAILC,ci);B.conc.add(wx(a),yb0+.02,wz(b),.2,.04,.2,0,RAILC,ci);B.glow.add(wx(a),yt-.06,wz(b),.12,.012,.12,0,col,ci)}}}
+  if(!eg.length)for(const d of[0,2]){const mx=x+DX[d]*.16;B.conc.add(mx,y,z,.32,.06,.2,0,RAILC,ci);for(const sd of[-1,1])B.glow.add(mx,y+.032,z+sd*.105,.32,.012,.012,0,col,ci)}
+  if(eg.length<=1){const ax=eg.length?(eg[0].d%2===0?0:1):1;   // Haltestelle: Bahnsteige beidseitig, Glasdach, Leuchtschild
     for(const sd of[-1,1]){const px=x+(ax?sd*.27:0),pz=z+(ax?0:sd*.27);B.dark.add(px,y-.01,pz,ax?.2:.7,.03,ax?.7:.2,0,DARK2,ci);B.glow.add(px+(ax?-sd*.1:0),y+.008,pz+(ax?0:-sd*.1),ax?.012:.7,.006,ax?.7:.012,0,[1.6,1.4,.3],ci);
       B.dark.add(px+(ax?sd*.08:0),y+.17,pz+(ax?0:sd*.08),.02,.34,.02,0,DARK,ci)}
     B.glass.add(x,y+.35,z,ax?.72:.8,.02,ax?.8:.72,0,GLASS,ci);B.glow.add(x,y+.37,z,ax?.02:.3,.06,ax?.3:.02,0,col,ci)}}
@@ -1842,19 +1857,20 @@ const trainBody=new THREE.MeshStandardMaterial({color:0xd8dce6,roughness:.3,meta
 function trainMesh(){const g=new THREE.Group();for(let q=0;q<2;q++){const car=new THREE.Group(),b=new THREE.Mesh(GEO.box,trainBody);b.scale.set(.5,.12,.17);b.castShadow=true;car.add(b);
     const wv=new THREE.Mesh(GEO.box,trainWin);wv.scale.set(.42,.03,.175);wv.position.y=.02;car.add(wv);const l=new THREE.Mesh(GEO.sph,trainLamp);l.scale.setScalar(.04);l.position.set(.25,-.01,0);car.add(l);g.add(car)}return g}
 function rebuildTrains(){trains.length=0;trainPool.forEach(m=>m.visible=false);const seen=new Set();let used=0;
-  for(let n=0;n<N*N;n++){const c=G[n];if(c.rt!==2||!c.m||seen.has(n))continue;const tp=topOf(c.m),comp=[],q=[n];seen.add(n);
-    while(q.length){const m=q.pop();comp.push(m);for(const d of railNb(m%N,(m/N)|0,tp)){const o=ix(m%N+DX[d],((m/N)|0)+DZ[d]);if(!seen.has(o)){seen.add(o);q.push(o)}}}
-    if(comp.length<2)continue;const deg=m=>railNb(m%N,(m/N)|0,tp).length,start=comp.find(m=>deg(m)===1)??comp[0],path=[start],vis=new Set([start]);let cur=start,pd=-1;
-    for(;;){const ds=railNb(cur%N,(cur/N)|0,tp).filter(d=>!vis.has(ix(cur%N+DX[d],((cur/N)|0)+DZ[d])));if(!ds.length)break;const d=ds.includes(pd)?pd:ds[0];cur=ix(cur%N+DX[d],((cur/N)|0)+DZ[d]);vis.add(cur);path.push(cur);pd=d}
-    const loop=path.length>2&&railNb(cur%N,(cur/N)|0,tp).some(d=>ix(cur%N+DX[d],((cur/N)|0)+DZ[d])===start);if(loop)path.push(start);
-    const y=D+tp*H+.33,pts=path.map(m=>new THREE.Vector3(wx(m%N),y,wz((m/N)|0))),cum=[0];for(let t=1;t<pts.length;t++)cum.push(cum[t-1]+pts[t].distanceTo(pts[t-1]));
+  const EG=new Map();for(let n=0;n<N*N;n++)if(isRail(G[n]))EG.set(n,railEdges(n%N,(n/N)|0));
+  for(const n of EG.keys()){if(seen.has(n))continue;const comp=[],q=[n];seen.add(n);
+    while(q.length){const m=q.pop();comp.push(m);for(const e of EG.get(m))if(!seen.has(e.n)){seen.add(e.n);q.push(e.n)}}
+    if(comp.length<2)continue;const start=comp.find(m=>EG.get(m).length===1)??comp[0],path=[start],vis=new Set([start]);let cur=start,pd=-1;
+    for(;;){const es=EG.get(cur).filter(e=>!vis.has(e.n));if(!es.length)break;const e=es.find(x=>x.d===pd)||es[0];cur=e.n;vis.add(cur);path.push(cur);pd=e.d}
+    const loop=path.length>2&&EG.get(cur).some(e=>e.n===start);if(loop)path.push(start);
+    const pts=path.map(m=>new THREE.Vector3(wx(m%N),railY(topOf(G[m].m))+.13,wz((m/N)|0))),cum=[0];for(let t=1;t<pts.length;t++)cum.push(cum[t-1]+pts[t].distanceTo(pts[t-1]));
     let mesh=trainPool[used];if(!mesh){mesh=trainMesh();trainPool.push(mesh);trainG.add(mesh)}used++;mesh.visible=true;
     trains.push({pts,cum,len:cum[cum.length-1],loop,s:hash(n,1,91)*cum[cum.length-1],dir:1,wait:0,mesh})}}
 const _tp=new THREE.Vector3();
-function trainAt(t,s){s=t.loop?((s%t.len)+t.len)%t.len:Math.max(0,Math.min(t.len,s));let k=1;while(k<t.cum.length-1&&t.cum[k]<s)k++;const a=t.pts[k-1],b=t.pts[k],u=(s-t.cum[k-1])/Math.max(1e-6,t.cum[k]-t.cum[k-1]);_tp.lerpVectors(a,b,u);return[_tp.x,_tp.y,_tp.z,b.x-a.x,b.z-a.z]}
+function trainAt(t,s){s=t.loop?((s%t.len)+t.len)%t.len:Math.max(0,Math.min(t.len,s));let k=1;while(k<t.cum.length-1&&t.cum[k]<s)k++;const a=t.pts[k-1],b=t.pts[k],u=(s-t.cum[k-1])/Math.max(1e-6,t.cum[k]-t.cum[k-1]);_tp.lerpVectors(a,b,u);_tp.dy=b.y-a.y;return[_tp.x,_tp.y,_tp.z,b.x-a.x,b.z-a.z]}
 function updTrains(dt){for(const t of trains){if(t.wait>0)t.wait-=dt;else{const v=.95;
     if(t.loop)t.s+=v*dt;else{const lim=t.dir>0?t.len-.3:.3;const dist=(lim-t.s)*t.dir,sp=Math.min(v,.25+dist*1.4);t.s+=t.dir*sp*dt;if(dist<=.01){t.s=lim;t.dir*=-1;t.wait=2.5}}}
-    t.mesh.children.forEach((car,q)=>{const[x,y,z,dx,dz]=trainAt(t,t.s-q*.56*t.dir*(t.loop?1:1));car.position.set(x,y,z);car.rotation.y=Math.atan2(-dz,dx)+(t.dir<0&&!t.loop?Math.PI:0)})}}
+    t.mesh.children.forEach((car,q)=>{const[x,y,z,dx,dz]=trainAt(t,t.s-q*.56*t.dir*(t.loop?1:1));car.position.set(x,y,z);car.rotation.set(0,Math.atan2(-dz,dx)+(t.dir<0&&!t.loop?Math.PI:0),Math.atan2(_tp.dy,Math.hypot(dx,dz))*(t.dir<0&&!t.loop?-1:1),'YXZ')})}}
 // ============================================================ Vorschau: Geist-Kasten und Auswahl
 const ghostMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending});
 const ghost=new THREE.Mesh(GEO.box,ghostMat),ghostEdge=new THREE.LineSegments(new THREE.EdgesGeometry(GEO.box),new THREE.LineBasicMaterial({color:0xffffff,transparent:true}));
