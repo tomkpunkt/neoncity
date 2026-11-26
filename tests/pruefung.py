@@ -283,6 +283,24 @@ def desktop(p):
     pg.wait_for_timeout(4300)
     pruefe('Maus über der Leiste hält die Oberfläche sichtbar', not pg.evaluate("document.body.classList.contains('idle')"))
     pruefe('Titel „Neon City“', pg.title() == 'Neon City' and pg.evaluate("document.querySelector('.brand h1').textContent") == 'Neon City', pg.title())
+    # Neon-Werkzeug: Kontur auf der Fläche unter dem Zeiger und Etikett neben dem Zeiger
+    pg.evaluate(LEER + ";NEON.G[10*20+10]={g:0,m:63,s:1,c:0,sg:[]};NEON.rebuild();NEON.setTool('neon')")
+    def zielen(x, y, z):
+        q = proj(pg, x, y, z)
+        pg.mouse.move(q[0] - 3, q[1] - 3)
+        pg.mouse.move(*q)
+        pg.wait_for_timeout(250)
+        return pg.evaluate("[NEON.faceHL.visible, document.getElementById('lbl').style.display==='block'?document.getElementById('lbl').textContent:'']"), q
+    (sichtbar_w, wand), q = zielen(1.0, D + 2.5 * H, 0.5)
+    pg.mouse.click(*q)
+    pg.wait_for_timeout(250)
+    (_, wand2), _ = zielen(1.0, D + 2.5 * H, 0.45)
+    (sichtbar_d, dach), _ = zielen(0.5, D + 6 * H, 0.5)
+    pruefe('Neon zielt sichtbar: Wandschild, nach dem Setzen „entfernen“, Dach-Werbetafel',
+           sichtbar_w and sichtbar_d and wand in ('Wandschild', 'Wall sign') and wand2 in ('Wandschild entfernen', 'Remove wall sign') and dach in ('Werbetafel aufs Dach', 'Roof billboard'),
+           f'{wand} / {wand2} / {dach}')
+    pg.evaluate("NEON.setTool('build')")
+
     # Tageszeit-Regler und Wetter-Auswahl mit Mehrfachauswahl
     regler = pg.evaluate("(()=>{const r=document.getElementById('tday').getBoundingClientRect();return [r.left,r.top+r.height/2,r.width]})()")
     pg.mouse.click(regler[0] + regler[2] * 0.5, regler[1])
