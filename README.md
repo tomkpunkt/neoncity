@@ -31,7 +31,19 @@ Die Kamera gleitet beim Halten der Tasten weich los und rollt nach dem Loslassen
 
 Bewegst du die Maus gut 3 Sekunden nicht, blendet sich die Oberfläche aus und der Mauszeiger verschwindet. Mausbewegung, Tippen oder eine Taste holen sie zurück; die Kamerasteuerung mit der Tastatur zählt nicht dazu, so kannst du ohne Leisten durch die Stadt fahren. Ruht die Maus über einer Leiste oder ist das Menü offen, bleibt alles sichtbar. Tippst du auf eine ausgeblendete Leiste, erscheint sie nur und es wird nichts darunter gebaut.
 
-Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wiederholen, `T` Tilt-Shift, `N` Stimmung, `R` Regen, `M` Ton, `Leertaste` Rundflug, `P` Fotomodus, `Esc` abbrechen.
+## Tageszeit und Wetter
+
+- **Zeitregler** oben in der Mitte: links der Mond für Mitternacht, die Sonne markiert Mittag, rechts steht die Uhrzeit. Ziehen stellt die Tageszeit in 5-Minuten-Schritten; Himmel, Licht, Nebel, Wasser und Fenster folgen sofort. Morgens und abends steht die Sonne tief und wirft lange Schatten, nachts übernimmt der Mond. Tagsüber brennt nur noch in wenigen Wohnungen Licht, die Scheiben spiegeln den Himmel stärker und das Neon leuchtet schwächer. Die Zeit bleibt stehen, wo du sie hinstellst.
+- **Wetter** (Wolken-Knopf oben rechts): ein Menü zum Ankreuzen, mehrere Wetter gleichzeitig sind möglich. Jedes blendet in gut 2 Sekunden ein oder aus.
+  - **Regen**: Regenfäden, Ringe auf dem Wasser, Schirme bei den Fußgängern, Rauschen.
+  - **Gewitter**: dunkler Himmel, Blitze in unregelmäßigen Abständen, oft doppelt, mit sichtbarem Blitz am Horizont und verzögertem Donner.
+  - **Schnee**: treibende Flocken; Dächer, Straßen und Parks werden in etwa 30 Sekunden weiß und tauen danach langsam wieder.
+  - **Nebel**: dichter, heller Dunst, Neon bekommt Lichthöfe.
+  - **Smog**: gelbgrüner Dunst; zusammen mit Regen wird daraus Säureregen.
+  - **Polarlicht**: wehende grüne und violette Bänder am Nachthimmel, tagsüber unsichtbar.
+- Die Zahl am Wolken-Knopf zeigt, wie viele Wetter an sind, sobald es mehr als eines ist.
+
+Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wiederholen, `T` Tilt-Shift, `N` nächste Tageszeit (Morgen, Mittag, Abend, Nacht), `R` Regen, `M` Ton, `Leertaste` Rundflug, `P` Fotomodus, `Esc` abbrechen.
 
 ## Werkzeuge
 
@@ -75,7 +87,7 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 
 - **three.js 0.170.0** als ES-Modul über eine Importmap von jsDelivr, dazu OrbitControls, `Reflector` für das Wasser (Wellen- und Regenverzerrung, Nebel im Shader; Regen und Vorschau werden nicht gespiegelt), `EffectComposer` mit `UnrealBloomPass`, `OutputPass`, zwei Tilt-Shift-Pässen und einem eigenen Pass für Farbsaum, Sättigung, Vignette, Körnung, Scanlines und Glitch.
 - **Tilt-Shift**: Ein 9-Tap-Weichzeichner, getrennt nach waagerecht und senkrecht. Er beginnt erst außerhalb eines scharfen Bandes, und dieses Band folgt dem Blickpunkt der Kamera. Dazu kommt etwas mehr Sättigung für den Miniatur-Look.
-- **GSAP 3.12.5** für den Kameraflug beim Start und die Übergänge zwischen Stimmungen (`lagSmoothing(0)`, damit langsame Geräte nicht hängen bleiben).
+- **GSAP 3.12.5** für den Kameraflug beim Start und den Sprung zur nächsten Tageszeit (`lagSmoothing(0)`, damit langsame Geräte nicht hängen bleiben).
 - **Tone.js 14.8.49** für Synth-Pad, Bass und Regenrauschen. Jede Etage spielt beim Bauen einen höheren Ton der Pentatonik.
 - **Stadtmodell**: Jedes Feld hat eine Bodenart `g` und eine Etagen-Maske `m`, in der Bit `k` für Etage `k` steht. Damit sind Überhänge, Löcher, Durchgänge und Brücken dasselbe: Etagen, unter denen nichts liegt.
 - **Rendering**: Jede Bauteilart ist ein `InstancedMesh`-„Eimer“ mit einem Draw-Call, insgesamt 65 Eimer. Leere Eimer werden nicht gezeichnet. Nach jeder Änderung wird die ganze Stadt aus dem Raster neu aufgebaut, das sind höchstens 20 × 20 × 18 Felder. Ein in `onBeforeCompile` eingesetzter Vertex-Shader lässt geänderte Etagen federnd aufploppen: Drehpunkt und Zeitpunkt je Instanz, und nur ab der geänderten Etage. Fassaden bekommen Welt-UVs, damit Texturen über verschmolzene Gebäude und runde Ecken durchlaufen. Ein Streulicht-Term färbt Wände in Bodennähe mit Neon ein.
@@ -86,19 +98,21 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
   - Der Zufallswert je Fenster kommt als `flat`-Varying aus der Position der Instanz, damit er über die Fläche nicht rauscht.
 - **Eckformen**: Ein Stockwerk mit geformter Ecke besteht aus vier Viertel-Prismen (eckig, schräg, rund, hohl), die je nach Ecke gedreht und skaliert werden. Innenecken bekommen ein Füllstück im leeren Diagonalfeld (Dreieck oder Viertelkreis-Hohlkehle). Die Fenster der angrenzenden Wände werden passend gekürzt.
 - **Straßen**: Jedes Straßenfeld wird eingeordnet als gerade (x oder z), Kreuzung oder Ende/Kurve. Dafür zählen nur Straßenfelder, Plätze daneben ändern die Einordnung nicht. Zwei gerade Felder gleicher Richtung nebeneinander ergeben eine breite Straße. Liegt in Fahrtrichtung eine Kreuzung oder ein Platz, kommt ein Zebrastreifen dazu.
+- **Tageszeit**: Neun Stützpunkte über 24 Stunden (Nacht, späte Nacht, Morgendämmerung, Sonnenaufgang, Vormittag, Nachmittag, Abendsonne, Dämmerung, Nacht) halten Himmelsfarben, Nebel, Halbkugel- und Richtungslicht, Bloom, Neon-Streulicht, Wasserfarbe, Sterne, Tageslichtanteil, Umgebungslicht und Belichtung. Dazwischen wird weich überblendet. Das Richtungslicht wandert als Sonne von Osten nach Westen und nachts als Mond; für Tag und Nacht gibt es je eine eigene Umgebungskarte. Der Himmel zeichnet eine Sonnenscheibe mit Hof.
+- **Wetter**: Jedes Wetter hat einen Wert von 0 bis 1, der weich nachläuft. Nach der Tageszeit verändert jedes aktive Wetter die Werte (Nebeldichte, Farben, Licht), deshalb lassen sie sich frei kombinieren. Schnee liegt über einen eigenen Wert in allen Standard-Materialien auf Flächen, die nach oben zeigen. Polarlicht und Blitzschein sitzen im Himmels-Shader.
 - **Stützen**: Eine Breitensuche je Etage geht von den getragenen Feldern aus, also Feldern mit einer Etage darunter. Sie misst für jede Überhang-Unterseite den Abstand `t` und die Länge `n` der Reihe nach außen. Bei `n = 1` entstehen L-Verbinder an den Wandecken, sonst eine Stütze, wenn `t ≥ 2` und `n − t` gerade ist.
 - **Zufall**: Alles, was zum Bau gehört, kommt aus einem Hash von Feld, Etage und Richtung. Dieselbe Stadt sieht deshalb nach dem Laden genauso aus. `Math.random` steuert nur die Optik, also Partikel, Fensterflackern, Verkehr und Texturen.
 
 ### Spielstand
 
-- Wird automatisch in `localStorage` gespeichert, Schlüssel `neonstadt-v2` (der Name stammt aus der Zeit vor der Umbenennung und bleibt, damit gespeicherte Städte erhalten bleiben). Ein alter Stand unter `neonstadt-v1` wird beim ersten Start gelesen und umgebaut. Effektstufe und Tilt-Shift liegen unter `neonstadt-q` und `neonstadt-tilt`.
+- Wird automatisch in `localStorage` gespeichert, Schlüssel `neonstadt-v2` (der Name stammt aus der Zeit vor der Umbenennung und bleibt, damit gespeicherte Städte erhalten bleiben). Ein alter Stand unter `neonstadt-v1` wird beim ersten Start gelesen und umgebaut. Effektstufe und Tilt-Shift liegen unter `neonstadt-q` und `neonstadt-tilt`, Tageszeit und Wetter unter `neonstadt-tageszeit` und `neonstadt-wetter`.
 - Format 2: `{v:2, app:'neonstadt', n:20, name, cells:[[index, g, m, s, c, schilder?, werbetafel?, ecken?], …]}`. Dabei ist `g` die Bodenart (0 Wasser, 1 Straße, 2 Park, 3 Platz) und `m` die Etagen-Maske. `s` ist der Stil, `c` die Farbe, `schilder` eine Liste von `[Richtung, Etage, Motiv]` und `ecken` die Form der vier Ecken (0 eckig, 1 schräg, 2 rund, 3 hohl).
 - Format 1 (`[index, k, h, s, c, a, …]` mit Höhe `h` und Durchgang `a`) wird beim Laden in eine Maske umgerechnet.
 - Der **Stadt-Code** im Menü ist das JSON als Base64 mit dem Präfix `NEON2:`. Codes mit `NEON1:` und reines JSON werden ebenfalls angenommen. Beim Laden werden alle Felder geprüft und begrenzt.
 
 ### Testschnittstelle
 
-`window.NEON` bietet `G`, `idleState`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
+`window.NEON` bietet `G`, `idleState`, `setHour`, `hour`, `setWeather`, `wth`, `nextDaytime`, `AP`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
 
 ## Prüfen
 
@@ -107,7 +121,7 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 33 Punkte:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 47 Punkte, darunter:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
@@ -122,12 +136,13 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - weiches Gleiten mit der Tastatur, Tilt-Shift-Schalter,
 - Ausblenden der Oberfläche ohne Mausbewegung, Zurückholen per Klick ohne zu bauen, sichtbar bleiben über der Leiste,
 - Titel „Neon City“,
+- Zeitregler (Mitte = Mittag, Tageslicht), Wetter-Menü mit Mehrfachauswahl, alte Knöpfe für Regen und Stimmung entfernt,
 - Tippen am Handy,
 - keine Seitenfehler.
 
-**Stand 2026-11-25** (Commit mit diesem README):
-- **Ausgeführt:** alle 33 Prüfungen grün, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
-- **Angesehen:** Nahaufnahmen aller vier Stile mit Innenräumen, Silhouetten über mehrere Sekunden und Stützen je Stil.
+**Stand 2026-11-26** (Commit mit diesem README):
+- **Ausgeführt:** alle 47 Prüfungen grün, dazu `tests/strassenleben.py`, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Angesehen:** Morgen, Mittag, Abend und Nacht; Schnee, Nebel (Tag und Nacht), Smog (Tag und Nacht), Gewitter und Polarlicht; das Wetter-Menü auf Desktop und Handy.
 - **Nicht geprüft:** die Bildrate auf echter Grafikkarte (der Innenraum-Shader kostet pro Fensterpixel etwas mehr als vorher), der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.
 
