@@ -57,9 +57,17 @@ Weitere Tasten: `1`–`8` Werkzeuge, `Strg+Z` / `Strg+Y` Rückgängig und Wieder
   | **Reihe** | ein senkrechter Streifen von einem Feld Breite | eine Reihe von Feldern, waagerecht im Bild |
   | **Block** | ein einzelnes Feld auf dieser Etage | ein einzelnes Feld |
 - **Kanten**: Außenecken werden **eckig**, **schräg**, **rund** (nach außen gewölbt) oder **hohl** (nach innen gezogen). **Innenecken** von L- oder U-förmigen Gebäuden werden schräg oder rund ausgefüllt. Ein Klick auf die Dachmitte ändert das ganze Gebäude, Ziehen eine ganze Fläche.
-- **Straße**: Wahlweise Straße oder Platz. Zwei Straßenfelder nebeneinander werden eine **breite Straße** mit doppelter Mittellinie, gestrichelten Fahrstreifen und Zebrastreifen an Kreuzungen. Auf einem Gebäude wird das Erdgeschoss zum Durchgang mit Neon-Bogen.
-- **Park**: Leuchtbäume und Glühwürmchen.
-- **Neon**: Ein Klick auf eine Fassade setzt ein Leuchtschild, ein Klick aufs Dach schaltet die Werbetafel an oder aus. Beim Zielen leuchtet genau die Fläche unter dem Zeiger mit einer hellen Kontur auf, und neben dem Zeiger steht, was ein Klick tut: „Wandschild“, „Werbetafel aufs Dach“ oder „… entfernen“, wenn dort schon etwas hängt. Die scharfe Zone des Tilt-Shift wandert dabei auf die anvisierte Fläche.
+- **Straße**: Wahlweise Straße oder Platz. Zwei Straßenfelder nebeneinander werden eine **breite Straße** mit doppelter Mittellinie, gestrichelten Fahrstreifen und Zebrastreifen an Kreuzungen. Auf einem Gebäude wird das Erdgeschoss zum Durchgang mit Neon-Bogen. Auf einem Dach entsteht eine **Magnetbahn**: Ein Klick legt ein Stück Fahrweg, Ziehen legt ihn über mehrere gleich hohe Dächer. Benachbarte Dächer gleicher Höhe verbinden sich zu einer Strecke, an den Enden stehen Haltestellen mit Bahnsteig und Glasdach. Auf jeder Strecke ab zwei Feldern pendelt ein Zug, bremst an den Haltestellen und wartet kurz; auf einem Ring fährt er im Kreis.
+- **Park**: Leuchtbäume und Glühwürmchen. Auf einem Dach entsteht ein **Dachgarten** (Klick oder über mehrere gleich hohe Dächer ziehen, nochmal klicken entfernt ihn). Die Ausstattung hängt vom Stil und der Höhe ab:
+  - Konzern: Rasen mit Glasgeländer und Leuchtweg, Zypressen und Bank; ab 8 Etagen Pool mit Palme,
+  - Megablock: Hochbeete mit Gemüse und Regentonne; mittelhoch eine Pergola mit Laterne, ab 8 Etagen ein Gewächshaus mit Pflanzenlicht,
+  - Container: Kisten als Pflanzkübel, Baum im Fass, Lichterkette; ganz oben eine Satellitenschüssel,
+  - Pagode: Zen-Garten mit geharktem Kies, Steinen und Steinlaterne; niedrig Bambus, mittelhoch Ahorn und Torii, ab 8 Etagen Kirschbaum.
+- **Neon**: Ein Klick auf eine Fassade setzt ein kleines Leuchtschild, ein Klick aufs Dach schaltet die Werbetafel an oder aus. Ziehen an der Fassade spannt ein Rechteck über Etagen und Nachbarfelder auf:
+  - über zwei Etagen ein **Doppelschild** in doppelter Höhe,
+  - ab drei Feldern (z. B. 3 × 1, 1 × 3, 2 × 2 bis 6 × 6) oder zwei Felder nebeneinander eine **Leinwand** mit wechselnder Werbung; hohe Leinwände zeigen Hochformat-Motive, breite Querformat,
+  - auf dem Dach über zwei gleich hohe Felder eine **doppelte Werbetafel**, beidseitig bespielt.
+  Ein Klick auf ein vorhandenes Schild, eine Leinwand oder Tafel entfernt sie. Was darunter lag, wird beim Ziehen ersetzt; passt das Rechteck nicht (fehlende Etage, verdeckte Wand), steht „Kein Platz“ am Zeiger. Beim Zielen leuchtet genau die Fläche unter dem Zeiger mit einer hellen Kontur auf, und neben dem Zeiger steht, was ein Klick tut: „Wandschild“, „Werbetafel aufs Dach“ oder „… entfernen“, wenn dort schon etwas hängt. Die scharfe Zone des Tilt-Shift wandert dabei auf die anvisierte Fläche.
 - **Gestalten**: Färbt das ganze Gebäude um oder wechselt den Stil, je nach Auswahl im Dock.
 - **Abriss**: Ein Klick nimmt genau die geklickte Etage weg, auch aus der Mitte eines Turms; so entstehen Löcher und Überhänge. Mit Ziehen wird alles im Rechteck ab dieser Höhe abgeschnitten.
 
@@ -106,13 +114,13 @@ Das Startviertel hat zweispurige Hauptachsen mit Brückenhäusern darüber, Nebe
 ### Spielstand
 
 - Wird automatisch in `localStorage` gespeichert, Schlüssel `neonstadt-v2` (der Name stammt aus der Zeit vor der Umbenennung und bleibt, damit gespeicherte Städte erhalten bleiben). Ein alter Stand unter `neonstadt-v1` wird beim ersten Start gelesen und umgebaut. Effektstufe und Tilt-Shift liegen unter `neonstadt-q` und `neonstadt-tilt`, Tageszeit und Wetter unter `neonstadt-tageszeit` und `neonstadt-wetter`.
-- Format 2: `{v:2, app:'neonstadt', n:20, name, cells:[[index, g, m, s, c, schilder?, werbetafel?, ecken?], …]}`. Dabei ist `g` die Bodenart (0 Wasser, 1 Straße, 2 Park, 3 Platz) und `m` die Etagen-Maske. `s` ist der Stil, `c` die Farbe, `schilder` eine Liste von `[Richtung, Etage, Motiv]` und `ecken` die Form der vier Ecken (0 eckig, 1 schräg, 2 rund, 3 hohl).
+- Format 2: `{v:2, app:'neonstadt', n:20, name, cells:[[index, g, m, s, c, schilder?, werbetafel?, ecken?, parkstufe?, dach?], …]}`. Dabei ist `g` die Bodenart (0 Wasser, 1 Straße, 2 Park, 3 Platz) und `m` die Etagen-Maske. `s` ist der Stil, `c` die Farbe, `schilder` eine Liste von `[Richtung, Etage, Motiv]` (automatisch gesetzt) oder `[Richtung, Etage, Motiv, Breite, Höhe]` (selbst gesetzt; Anker ist das Feld mit dem kleinsten Index entlang der Fassade), `werbetafel` 0 aus, 1 einfach, 2 doppelt zum Nachbarn in +x, 3 doppelt zum Nachbarn in +z, und `ecken` die Form der vier Ecken (0 eckig, 1 schräg, 2 rund, 3 hohl). `dach` ist die Nutzung des obersten Dachs: 1 Dachgarten, 2 Magnetbahn.
 - Format 1 (`[index, k, h, s, c, a, …]` mit Höhe `h` und Durchgang `a`) wird beim Laden in eine Maske umgerechnet.
 - Der **Stadt-Code** im Menü ist das JSON als Base64 mit dem Präfix `NEON2:`. Codes mit `NEON1:` und reines JSON werden ebenfalls angenommen. Beim Laden werden alle Felder geprüft und begrenzt.
 
 ### Testschnittstelle
 
-`window.NEON` bietet `G`, `idleState`, `faceHL`, `setHour`, `hour`, `setWeather`, `wth`, `nextDaytime`, `AP`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
+`window.NEON` bietet `G`, `idleState`, `faceHL`, `trains`, `signCover`, `wideOf`, `setHour`, `hour`, `setWeather`, `wth`, `nextDaytime`, `AP`, `setPullMode`, `roadAxis`, `rebuild`, `snap`, `load`, `restore`, `pick`, `makePlan`, `rectPlan`, `extrude`, `pullApply`, `regionOf`, `topRegion`, `botRegion`, `sideRegion`, `undo`, `redo`, `setTool`, `generate`, `project`, `setQuality`, `setTilt`, `tiltOn`, `killIntro`, `topOf`, `rng`, `segOf`, `hl`, `gcars`, `STATS`, `B`, `camera` und `controls`.
 
 ## Prüfen
 
@@ -121,7 +129,7 @@ pip install playwright && python3 -m playwright install chromium
 python3 tests/pruefung.py            # Screenshots landen im Temp-Ordner
 ```
 
-Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 48 Punkte, darunter:
+Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf diese Kopien um. Dann prüft es 51 Punkte, darunter:
 - Startviertel und Autos auf den Straßen,
 - 4×4-Fläche als ein Gebäude,
 - Push/Pull an Dach und Fassade samt leuchtender Fläche,
@@ -137,12 +145,13 @@ Das Skript holt die Bibliotheken per `npm pack` und leitet die CDN-Adressen auf 
 - Ausblenden der Oberfläche ohne Mausbewegung, Zurückholen per Klick ohne zu bauen, sichtbar bleiben über der Leiste,
 - Titel „Neon City“,
 - Zielhilfe des Neon-Werkzeugs (Kontur und Etikett für Wand und Dach),
+- Schilder ziehen (Doppelschild, Leinwand, doppelte Werbetafel), Dachgarten, Magnetbahn mit Zug, alles auch nach dem Stadt-Code,
 - Zeitregler (Mitte = Mittag, Tageslicht), Wetter-Menü mit Mehrfachauswahl, alte Knöpfe für Regen und Stimmung entfernt,
 - Tippen am Handy,
 - keine Seitenfehler.
 
 **Stand 2026-11-26** (Commit mit diesem README):
-- **Ausgeführt:** alle 48 Prüfungen grün, dazu `tests/strassenleben.py`, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
+- **Ausgeführt:** alle 51 Prüfungen grün, dazu `tests/strassenleben.py`, in Headless-Chrome mit Software-WebGL (SwiftShader) bei 1400×860 und 390×844.
 - **Angesehen:** Morgen, Mittag, Abend und Nacht; Schnee, Nebel (Tag und Nacht), Smog (Tag und Nacht), Gewitter und Polarlicht; das Wetter-Menü auf Desktop und Handy.
 - **Nicht geprüft:** die Bildrate auf echter Grafikkarte (der Innenraum-Shader kostet pro Fensterpixel etwas mehr als vorher), der Ton (headless startet kein AudioContext) und echtes Safari auf iPhone oder iPad.
 - Läuft es zu langsam, schaltet das Spiel nach etwa 6 s unter 24 fps selbst auf „Effekte: Schonend“ (ohne Spiegelung, Schatten und Kantenglättung). Auf Touch-Geräten ist das die Grundeinstellung. Tilt-Shift lässt sich mit `T` oder im Menü ausschalten.

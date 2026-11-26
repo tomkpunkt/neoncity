@@ -301,6 +301,23 @@ def desktop(p):
            f'{wand} / {wand2} / {dach}')
     pg.evaluate("NEON.setTool('build')")
 
+    # Schilder ziehen: zwei Etagen = Doppelschild, drei Felder = Leinwand; Dach über zwei Felder = doppelte Werbetafel
+    pg.evaluate(LEER + ";for(const n of [210,211,212])NEON.G[n]={g:0,m:63,s:1,c:0,sg:[]};for(const n of [214,215,216])NEON.G[n]={g:0,m:15,s:1,c:2,sg:[]};NEON.rebuild();NEON.setTool('neon')")
+    ziehen(proj(pg, 0.5, D + 1.5 * H, 1.0), proj(pg, 0.5, D + 2.5 * H, 1.0))
+    ziehen(proj(pg, 0.5, D + 3.5 * H, 1.0), proj(pg, 2.5, D + 4.5 * H, 1.0))
+    ziehen(proj(pg, 0.5, D + 6 * H, 0.5), proj(pg, 1.5, D + 6 * H, 0.5))
+    sg, bb = pg.evaluate('JSON.stringify(NEON.G[210].sg.map(q=>[q[0],q[1],q[3],q[4]]))'), pg.evaluate('[NEON.G[210].bb,NEON.G[211].bb]')
+    pruefe('Schilder ziehen: Doppelschild, Leinwand 3 × 2, doppelte Werbetafel', sg == '[[1,1,1,2],[1,3,3,2]]' and bb == [2, 0], f'{sg} {bb}')
+    # Dachgarten per Klick, Magnetbahn über drei Dächer gezogen
+    pg.evaluate("NEON.setTool('park')")
+    pg.mouse.click(*proj(pg, 2.5, D + 6 * H, 0.5))
+    pg.evaluate("NEON.setTool('street')")
+    ziehen(proj(pg, 4.5, D + 4 * H, 0.5), proj(pg, 6.5, D + 4 * H, 0.5))
+    rt = pg.evaluate('[NEON.G[212].rt,NEON.G[214].rt,NEON.G[215].rt,NEON.G[216].rt,NEON.trains.length]')
+    pruefe('Dachgarten und Magnetbahn mit Zug', rt == [1, 2, 2, 2, 1], str(rt))
+    pruefe('Schilder, Dachgarten und Bahn überstehen den Stadt-Code', pg.evaluate('(()=>{const s=NEON.snap();NEON.load(s);NEON.rebuild();return NEON.snap()===s&&NEON.G[212].rt===1&&NEON.G[210].sg[1].length===5})()'))
+    pg.evaluate("NEON.setTool('build')")
+
     # Tageszeit-Regler und Wetter-Auswahl mit Mehrfachauswahl
     regler = pg.evaluate("(()=>{const r=document.getElementById('tday').getBoundingClientRect();return [r.left,r.top+r.height/2,r.width]})()")
     pg.mouse.click(regler[0] + regler[2] * 0.5, regler[1])

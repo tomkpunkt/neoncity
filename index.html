@@ -53,7 +53,7 @@ button{font:inherit;color:inherit}
 .wxi[aria-checked=true] b{background:var(--cy);border-color:var(--cy)}
 .wxi[aria-checked=true] b::after{content:'';width:8px;height:4px;border:2px solid #04121a;border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
 .wxi[aria-checked=true] .i{color:var(--cy)}
-@media (max-width:860px){.daybar{top:calc(max(12px,env(safe-area-inset-top)) + 54px);width:min(420px,calc(100vw - 28px))}.dtrack{flex:1;width:auto}.hint,.toast{top:calc(max(12px,env(safe-area-inset-top)) + 108px)!important}.wxmenu{top:calc(max(12px,env(safe-area-inset-top)) + 106px)}}
+@media (max-width:1180px){.daybar{top:calc(max(12px,env(safe-area-inset-top)) + 54px);width:min(420px,calc(100vw - 28px))}.dtrack{flex:1;width:auto}.hint,.toast{top:calc(max(12px,env(safe-area-inset-top)) + 108px)!important}.wxmenu{top:calc(max(12px,env(safe-area-inset-top)) + 106px)}}
 @media (max-width:760px){.daybar{top:calc(max(12px,env(safe-area-inset-top)) + 106px);height:40px}.toast{top:calc(max(12px,env(safe-area-inset-top)) + 156px)!important}.hint{top:auto!important}.wxmenu{top:calc(max(12px,env(safe-area-inset-top)) + 112px)}}
 .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .ib{width:44px;height:44px;border-radius:12px;background:var(--pan);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:border-color .2s,box-shadow .2s,transform .1s;padding:0}
@@ -133,6 +133,22 @@ const english={
   "Wiederholen": "Redo",
   "Wetter": "Weather",
   "Wandschild": "Wall sign",
+  "Doppelschild": "Double-height sign",
+  "Leinwand {w} × {h}": "Ad screen {w} × {h}",
+  "Leinwand entfernen": "Remove ad screen",
+  "Doppelte Werbetafel": "Double roof billboard",
+  "Kein Platz": "No room",
+  "Dachgarten": "Roof garden",
+  "Dachgarten entfernen": "Remove roof garden",
+  "Magnetbahn": "Maglev",
+  "Magnetbahn entfernen": "Remove maglev",
+  "Klick auf eine Fassade setzt ein Leuchtschild · Ziehen über zwei Etagen: Doppelschild, ab drei Feldern: Leinwand · aufs Dach: Werbetafel, über zwei Dächer gezogen doppelt": "Click a wall for a neon sign · Drag over two floors for a double-height sign, three or more cells for an ad screen · On a roof: billboard, drag across two roofs for a double one",
+  "Tippen auf eine Fassade setzt ein Leuchtschild · Ziehen über zwei Etagen: Doppelschild, ab drei Feldern: Leinwand · aufs Dach: Werbetafel, über zwei Dächer gezogen doppelt": "Tap a wall for a neon sign · Drag over two floors for a double-height sign, three or more cells for an ad screen · On a roof: billboard, drag across two roofs for a double one",
+  "Leuchtschild, Doppelschild oder Leinwand an der Fassade, Werbetafel auf dem Dach.": "Neon sign, double-height sign or ad screen on a wall, billboard on a roof.",
+  "Straße oder Platz. Zwei Straßen nebeneinander werden breit. Auf Dächern: Magnetbahn.": "Build a road or plaza. Place two roads side by side to make a wide road. On roofs: maglev.",
+  "Park anlegen. Auf einem Park klicken oder hochziehen: Wiese, Bäume, große Bäume, Statue, Brunnen, Monument. Auf einem Dach: Dachgarten.": "Create a park. Click or pull a park up: grass, trees, large trees, statue, fountain, monument. On a roof: roof garden.",
+  "Zwei Straßen nebeneinander werden eine breite Straße · auf einem Gebäude entsteht ein Durchgang · auf dem Dach eine Magnetbahn": "Place two roads side by side to make a wide road · On a building wall: passage · On a roof: maglev track",
+  " · auf einem Dach: Dachgarten": " · On a roof: roof garden",
   "Wandschild entfernen": "Remove wall sign",
   "Werbetafel aufs Dach": "Roof billboard",
   "Werbetafel entfernen": "Remove roof billboard",
@@ -366,7 +382,7 @@ window.addEventListener('error',e=>{
   <div class="tools" id="tools" role="toolbar" aria-label="Werkzeuge"></div>
   <div class="row" id="rowPal"><div class="grp" id="sws"></div><div class="sep"></div><div class="grp" id="sts"></div></div>
   <div class="row" id="rowCorner" hidden><div class="grp" id="cns"></div><div class="sep"></div><p class="side" style="text-align:left">Ecke anklicken · Innenecken werden gefüllt · Dachmitte: ganzes Gebäude</p></div>
-  <div class="row" id="rowStreet" hidden><div class="grp" id="gds"></div><div class="sep"></div><p class="side" style="text-align:left">Zwei Straßen nebeneinander werden eine breite Straße · auf einem Gebäude entsteht ein Durchgang</p></div>
+  <div class="row" id="rowStreet" hidden><div class="grp" id="gds"></div><div class="sep"></div><p class="side" style="text-align:left">Zwei Straßen nebeneinander werden eine breite Straße · auf einem Gebäude entsteht ein Durchgang · auf dem Dach eine Magnetbahn</p></div>
   <div class="row" id="rowShape" hidden><div class="grp" id="pms"></div><div class="sep"></div><p class="side" style="text-align:left" id="pmHint"></p></div>
   <div class="row" id="rowHint" hidden><p id="rowHintP"></p></div>
 </footer>
@@ -836,21 +852,21 @@ const isRoad=c=>free0(c)&&c.g===1,isPlz=c=>free0(c)&&c.g===3,isWalk=c=>isRoad(c)
 function occ(i,j,k){const n=at(i,j);return hasF(n,k)?n:null}
 const same=(a,b)=>!!a&&!!b&&a.m!==0&&b.m!==0&&a.s===b.s&&a.c===b.c;
 function segOf(m,k){if(!((m>>>k)&1))return null;let a=k,b=k;while(a>0&&(m>>>(a-1))&1)a--;while(b<MAXH-1&&(m>>>(b+1))&1)b++;return[a,b]}
-function fixCell(c){if(!c.m){c.sg=[];delete c.cn;delete c.bb}else c.sg=c.sg.filter(q=>hasF(c,q[1]))}
-const cellKey=c=>`${c.g},${c.m},${c.s},${c.c},${JSON.stringify(c.sg)},${c.bb},${c.cn||''},${c.g===2?pkLv(c):''}`;
+function fixCell(c){if(!c.m){c.sg=[];delete c.cn;delete c.bb;delete c.rt}else c.sg=c.sg.filter(q=>hasF(c,q[1]))}
+const cellKey=c=>`${c.g},${c.m},${c.s},${c.c},${JSON.stringify(c.sg)},${c.bb},${c.cn||''},${c.g===2?pkLv(c):''},${c.rt||0}`;
 G=emptyGrid();
 // ============================================================ Speichern, Laden, Teilen (Format 2; Format 1 wird beim Laden umgebaut)
-function snap(){const cells=[];G.forEach((c,n)=>{if(!c.g&&!c.m)return;const r=[n,c.g,c.m,c.s,c.c];const cn=c.cn&&c.cn.some(v=>v)?c.cn:0,pk=c.g===2&&c.pk!==undefined?c.pk:-1;if(c.sg.length||c.bb!==undefined||cn||pk>=0){r.push(c.sg,c.bb===undefined?-1:c.bb,cn||0);if(pk>=0)r.push(pk)}cells.push(r)});return JSON.stringify({v:2,app:'neonstadt',n:N,name:district,cells})}
+function snap(){const cells=[];G.forEach((c,n)=>{if(!c.g&&!c.m)return;const r=[n,c.g,c.m,c.s,c.c];const cn=c.cn&&c.cn.some(v=>v)?c.cn:0,pk=c.g===2&&c.pk!==undefined?c.pk:-1;if(c.sg.length||c.bb!==undefined||cn||pk>=0||c.rt){r.push(c.sg,c.bb===undefined?-1:c.bb,cn||0);if(pk>=0||c.rt)r.push(pk);if(c.rt)r.push(c.rt)}cells.push(r)});return JSON.stringify({v:2,app:'neonstadt',n:N,name:district,cells})}
 const clampI=(v,a,b)=>Math.max(a,Math.min(b,v|0));
 function load(json){const d=JSON.parse(json);if(!d||d.app!=='neonstadt'||!Array.isArray(d.cells)||(d.v!==1&&d.v!==2))throw new Error('Das ist kein Neon-City-Code.');
   const g=emptyGrid(),FULL=(1<<MAXH)-1;
-  for(const r of d.cells){if(!Array.isArray(r))continue;let n,gr,m,s,c,sg,bb,cn,pk;
+  for(const r of d.cells){if(!Array.isArray(r))continue;let n,gr,m,s,c,sg,bb,cn,pk,rt;
     if(d.v===1){let k,h,a;[n,k,h,s,c,a,sg,bb,cn]=r;k=clampI(k,0,3);h=clampI(h,0,MAXH);   // Format 1: Säule aus Höhe h und Durchgang a
       if(k===3){m=a?rng(1,Math.max(2,h)):rng(0,Math.max(1,h));gr=a?1:0}else{m=0;gr=k===1||k===2?k:0}}
-    else{[n,gr,m,s,c,sg,bb,cn,pk]=r;gr=clampI(gr,0,3);m=(m|0)&FULL}
+    else{[n,gr,m,s,c,sg,bb,cn,pk,rt]=r;gr=clampI(gr,0,3);m=(m|0)&FULL}
     if(!(n>=0&&n<N*N))continue;
-    const cell={g:gr,m,s:clampI(s,0,3),c:clampI(c,0,PAL.length-1),sg:m&&Array.isArray(sg)?sg.filter(q=>Array.isArray(q)&&q.length===3).map(q=>[clampI(q[0],0,3),clampI(q[1],0,MAXH-1),clampI(q[2],0,15)]).slice(0,12):[]};
-    if(m&&(bb===0||bb===1))cell.bb=bb;if(m&&Array.isArray(cn))cell.cn=[0,1,2,3].map(q=>clampI(cn[q],0,3));if(gr===2&&typeof pk==='number'&&pk>=0)cell.pk=clampI(pk,0,PKMAX);
+    const cell={g:gr,m,s:clampI(s,0,3),c:clampI(c,0,PAL.length-1),sg:m&&Array.isArray(sg)?sg.filter(q=>Array.isArray(q)&&(q.length===3||q.length===5)).map(q=>q.length===5?[clampI(q[0],0,3),clampI(q[1],0,MAXH-1),clampI(q[2],0,15),clampI(q[3],1,6),clampI(q[4],1,6)]:[clampI(q[0],0,3),clampI(q[1],0,MAXH-1),clampI(q[2],0,15)]).slice(0,12):[]};
+    if(m&&(bb===0||bb===1||bb===2||bb===3))cell.bb=bb;if(m&&(rt===1||rt===2))cell.rt=rt;if(m&&Array.isArray(cn))cell.cn=[0,1,2,3].map(q=>clampI(cn[q],0,3));if(gr===2&&typeof pk==='number'&&pk>=0)cell.pk=clampI(pk,0,PKMAX);
     g[n|0]=cell}
   G=g;if(typeof d.name==='string')district=d.name.slice(0,40)}
 let saveT=0,saveOk=true;
@@ -1160,20 +1176,72 @@ function segTop(c,i,j,ci,k,x,z,x0,x1,z0,z1,F,Gl,shp,isTop){
     const[px,pz,fw]=faceSpan(ci,k,d,x,z,x0,x1,z0,z1,shp);if(fw<.05)continue;
     onFace(B.dark,d,px,pz,0,top+.05,-.02,fw,.1,.04,mul(F,.7),ci);if(st===0)onFace(B.glow,d,px,pz,0,top+.104,-.02,fw,.01,.042,mul(Gl,1.6),ci)}
   if(!isTop)return;
-  const pag=st===3&&!shp.some(s=>s),heli=st===0&&tp>=9&&r(1)<.7,bb=c.bb!==undefined?c.bb===1:(tp>=4&&r(2)<.2&&(i+j)%2===0&&!pag&&!heli&&open.length>0);
+  if(c.rt===1)roofGarden(c,i,j,ci,tp,top,rx,rz,w,dz,Gl);else if(c.rt===2)roofRail(c,i,j,ci,tp,top,Gl);
+  const pag=!c.rt&&st===3&&!shp.some(s=>s),heli=!c.rt&&st===0&&tp>=9&&r(1)<.7,bbv=c.bb!==undefined?c.bb:(!c.rt&&tp>=4&&r(2)<.2&&(i+j)%2===0&&!pag&&!heli&&open.length>0?1:0),bb=bbv===1;
+  if(bbv===2||bbv===3)wideBillboard(c,i,j,ci,tp,top,bbv,Gl,(r(25)*3)|0);
   if(pag){B.roof.add(rx,top+.17,rz,1.62,.34,1.62,0,mul(F,.55),ci);B.dark.add(rx,top+.42,rz,.02,.22,.02,0,DARK,ci);B.gsph.add(rx,top+.54,rz,.07,.07,.07,0,mul(Gl,2.4),ci);
     for(const[a,b]of[[1,1],[1,-1],[-1,1],[-1,-1]])B.gsph.add(rx+a*.55,top+.02,rz+b*.55,.06,.08,.06,0,LANTERN,ci)}
   else if(heli){B.cyl.add(rx,top+.035,rz,.74,.02,.74,0,DARK2,ci);B.ring.add(rx,top+.05,rz,.62,.62,.62,0,mul(Gl,2.2),ci);B.blink.add(rx+.36,top+.06,rz,.04,.04,.04,0,RED,ci);B.blink.add(rx-.36,top+.06,rz,.04,.04,.04,0,RED,ci)}
-  else{const nAc=st===0?(r(3)<.5?1:0):Math.floor(r(3)*2.3);for(let t=0;t<nAc;t++)B.dark.add(rx+(r(4+t)-.5)*(w-.32),top+.09,rz+(r(8+t)-.5)*(dz-.32),.18,.13,.15,r(12+t)*1.5,DARK,ci);
+  else if(!c.rt){const nAc=st===0?(r(3)<.5?1:0):Math.floor(r(3)*2.3);for(let t=0;t<nAc;t++)B.dark.add(rx+(r(4+t)-.5)*(w-.32),top+.09,rz+(r(8+t)-.5)*(dz-.32),.18,.13,.15,r(12+t)*1.5,DARK,ci);
     if((st===1||st===2)&&r(13)<.3){const ox=(r(14)-.5)*.3,oz=(r(15)-.5)*.3;B.dark.add(rx+ox,top+.07,rz+oz,.2,.1,.2,0,DARK2,ci);B.cyl.add(rx+ox,top+.27,rz+oz,.26,.3,.26,0,TANK,ci)}
     if(st===2&&r(16)<.6)B.roof.add(rx+(r(17)-.5)*.3,top+.12,rz+(r(18)-.5)*.3,.45,.2,.45,0,TARP[(r(19)*3)|0],ci)}
-  if(!pag&&((tp>=7&&r(20)<.55)||r(20)<.15)){const ah=.4+r(21)*(tp>=8?1.2:.6),ox=(r(22)<.5?-1:1)*(w/2-.12),oz=(r(23)<.5?-1:1)*(dz/2-.12);B.dark.add(rx+ox,top+ah/2,rz+oz,.02,ah,.02,0,DARK,ci);B.blink.add(rx+ox,top+ah+.02,rz+oz,.045,.045,.045,0,RED,ci)}
+  if(!pag&&!c.rt&&((tp>=7&&r(20)<.55)||r(20)<.15)){const ah=.4+r(21)*(tp>=8?1.2:.6),ox=(r(22)<.5?-1:1)*(w/2-.12),oz=(r(23)<.5?-1:1)*(dz/2-.12);B.dark.add(rx+ox,top+ah/2,rz+oz,.02,ah,.02,0,DARK,ci);B.blink.add(rx+ox,top+ah+.02,rz+oz,.045,.045,.045,0,RED,ci)}
   if(bb){const d=open.length?open[(r(24)*open.length)|0]:0,[px,pz,fw]=facePos(d,x,z,x0,x1,z0,z1),bw=Math.min(.86,fw-.08),bh=.5,by=top+.2+bh/2,ad=(r(25)*3)|0;
     onFace(B.dark,d,px,pz,0,by,-.3,bw+.04,bh+.04,.03,DARK2,ci);onFace(B['ad'+ad],d,px,pz,0,by,-.283,bw,bh,1,ADC,ci);
     for(const s of[-1,1])onFace(B.dark,d,px,pz,s*bw*.4,top+.12,-.3,.03,.24,.03,DARK,ci);
     onFace(B.glow,d,px,pz,0,by+bh/2+.025,-.29,bw+.04,.012,.02,mul(Gl,2),ci);onFace(B.glow,d,px,pz,0,by-bh/2-.025,-.29,bw+.04,.012,.02,mul(Gl,2),ci)}
-  if((st===1||st===2)&&r(26)<.12)AUX.steam.push([rx,top+.1,rz]);
+  if(!c.rt&&(st===1||st===2)&&r(26)<.12)AUX.steam.push([rx,top+.1,rz]);
 }
+// Doppelte Werbetafel über zwei gleich hohe Dächer, beidseitig
+function wideBillboard(c,i,j,ci,tp,top,bbv,Gl,ad){const ox=bbv===2?1:0,oz=bbv===3?1:0,p=at(i+ox,j+oz);if(!p||!p.m||topOf(p.m)!==tp)return;
+  const cx=wx(i)+ox*.5,cz=wz(j)+oz*.5,ry=bbv===2?0:Math.PI/2,bw=1.72,bh=.62,by=top+.3+bh/2,X=bbv===2;
+  B.dark.add(cx,by,cz,bw+.06,bh+.06,.05,ry,DARK2,ci);
+  for(const sd of[1,-1])B['ad'+ad].add(cx+(X?0:sd*.032),by,cz+(X?sd*.032:0),bw,bh,1,ry+(sd<0?Math.PI:0),ADC,ci);
+  for(const t of[-1,1]){B.dark.add(cx+(X?t*.62:0),top+.15,cz+(X?0:t*.62),.045,.3,.045,0,DARK,ci);B.dark.add(cx+(X?t*.62:0),top+.012,cz+(X?0:t*.62),.16,.024,.16,0,DARK2,ci)}
+  for(const sy of[-1,1])B.glow.add(cx,by+sy*(bh/2+.035),cz,X?bw+.08:.03,.016,X?.03:bw+.08,0,mul(Gl,2.2),ci)}
+// Dachgarten: eigene Ausstattung je nach Stil und Höhe
+const GREEN=[.35,.9,.3],GREEN2=[.15,.6,.25],SAKURA=[1.3,.5,.8],MAPLE=[1.2,.32,.12],BAMBOO=[.12,.36,.1],GRAVEL=[.5,.48,.44],BEDS=[.16,.11,.08],POOL=[.12,.75,1.1],TORII=[.55,.05,.03];
+function roofGarden(c,i,j,ci,tp,top,rx,rz,w,dz,Gl){const st=c.s,h=(t,k)=>hash(i,j,t,k+70),hi=tp>=8,low=tp<=3,y=top+.035;
+  const tree=(ox,oz,s,th,col,flat=1)=>{B.dark.add(rx+ox,y+th/2,rz+oz,.03*(s/.22),th,.03*(s/.22),0,TRUNK,ci);B.tree.add(rx+ox,y+th+s*.4*flat,rz+oz,s,s*.9*flat,s,h(ox*9,1)*3,col,ci)};
+  const rail=(hgt,col,glass)=>{const b=glass?B.glass:B.dark;for(const[ax,az,lx,lz]of[[0,dz/2-.03,w-.06,.02],[0,-dz/2+.03,w-.06,.02],[w/2-.03,0,.02,dz-.06],[-w/2+.03,0,.02,dz-.06]])b.add(rx+ax,y+hgt/2,rz+az,lx,hgt,lz,0,col,ci)};
+  if(st===3){B.conc.add(rx-.1,top+.03,rz,w*.62,.03,dz-.1,0,GRAVEL,ci);B.grass.add(rx+w*.33,top+.035,rz,w*.3,.04,dz-.1,0,[1,1,1],ci);
+    for(let t=0;t<3;t++)B.glow.add(rx-.1,top+.047,rz-.25+t*.25,w*.55,.003,.012,0,[.7,.68,.62],ci);   // geharkte Linien
+    B.conc.add(rx-.22,top+.1,rz+.12,.14,.1,.11,h(0,2)*2,[.32,.32,.34],ci);B.conc.add(rx+.02,top+.07,rz-.2,.09,.06,.08,h(0,3)*2,[.32,.32,.34],ci);   // Steine
+    if(low){for(let t=0;t<5;t++)B.dark.add(rx+w*.33+(h(t,4)-.5)*.2,y+.18,rz+(h(t,5)-.5)*.6,.03,.36+h(t,6)*.2,.03,0,BAMBOO,ci)}
+    else tree(rx>0?w*.32:w*.32,(h(0,7)-.5)*.3,hi?.34:.26,hi?.2:.14,hi?SAKURA:MAPLE,.6);
+    B.conc.add(rx+w*.33,y+.04,rz+dz*.32,.07,.08,.07,0,[.4,.4,.42],ci);B.gsph.add(rx+w*.33,y+.11,rz+dz*.32,.05,.05,.05,0,LANTERN,ci);B.conc.add(rx+w*.33,y+.15,rz+dz*.32,.1,.025,.1,0,[.4,.4,.42],ci);
+    if(!low){const tx=rx-.1,tz=rz-dz/2+.12;for(const sd of[-1,1])B.dark.add(tx+sd*.17,y+.13,tz,.03,.26,.03,0,TORII,ci);B.dark.add(tx,y+.27,tz,.48,.03,.04,0,TORII,ci);B.dark.add(tx,y+.22,tz,.38,.02,.03,0,TORII,ci)}
+    return}
+  B.grass.add(rx,top+.035,rz,w-.1,.04,dz-.1,0,st===1?[.85,.95,.8]:[1,1,1],ci);
+  if(st===0){rail(.14,GLASS,true);B.glow.add(rx,top+.058,rz,.03,.004,dz-.2,0,mul(Gl,1.6),ci);
+    if(hi){B.conc.add(rx+.17,top+.06,rz,.42,.05,dz-.3,0,[.6,.6,.62],ci);B.glow.add(rx+.17,top+.088,rz,.36,.006,dz-.36,0,POOL,ci);   // Pool mit Palme
+      B.dark.add(rx-.25,y+.22,rz-.2,.03,.44,.03,0,TRUNK,ci);for(let t=0;t<5;t++){const a=t*1.26;B.tree.add(rx-.25+Math.cos(a)*.1,y+.45,rz-.2+Math.sin(a)*.1,.2,.05,.09,a,GREEN,ci)}}
+    else{for(const sd of[-1,1])B.tree.add(rx+sd*.26,y+.22,rz-.2,.13,.42,.13,0,GREEN2,ci);B.dark.add(rx,y+.05,rz+.22,.3,.04,.08,0,DARK2,ci);B.dark.add(rx,y+.1,rz+.26,.3,.08,.015,0,DARK2,ci)}
+    if(low)for(let t=0;t<4;t++)B.gsph.add(rx+(h(t,8)-.5)*.6,y+.02,rz+(h(t,9)-.5)*.6,.05,.04,.05,0,mul(PARKC[(h(t,10)*4)|0],.8),ci);
+    return}
+  if(st===1){for(let t=0;t<(hi?2:3);t++){const bz=rz-.28+t*.28;B.conc.add(rx-.1,y+.05,bz,.5,.1,.16,0,BEDS,ci);for(let q=0;q<4;q++)B.gsph.add(rx-.3+q*.13,y+.12,bz,.08,.06,.08,0,mul(GREEN,.6+h(t*4+q,11)*.4),ci)}
+    B.cyl.add(rx+.32,y+.1,rz+.3,.14,.2,.14,0,[.05,.12,.3],ci);
+    if(hi){B.glass.add(rx+.24,y+.17,rz-.12,.3,.34,.36,0,GLASS,ci);B.glow.add(rx+.24,y+.3,rz-.12,.22,.01,.02,0,[1.6,.4,1.6],ci);for(const sd of[-1,1])B.dark.add(rx+.24+sd*.15,y+.17,rz-.12,.012,.34,.37,0,DARK,ci)}
+    else if(!low){for(const[a,b]of[[1,1],[1,-1],[-1,1],[-1,-1]])B.dark.add(rx+.27+a*.12,y+.15,rz-.12+b*.15,.02,.3,.02,0,DARK,ci);for(let t=0;t<4;t++)B.dark.add(rx+.27,y+.3,rz-.27+t*.1,.28,.015,.02,0,DARK,ci);B.gsph.add(rx+.27,y+.26,rz-.12,.04,.04,.04,0,LANTERN,ci)}
+    return}
+  // Container: Kisten als Pflanzkübel, Baum im Fass, Lichterkette
+  for(let t=0;t<3;t++){const ox=(h(t,12)-.5)*.5,oz=(h(t,13)-.5)*.5;B.dark.add(rx+ox,y+.06,rz+oz,.2,.12,.16,h(t,14)*1.5,TARP[(h(t,15)*3)|0],ci);B.gsph.add(rx+ox,y+.14,rz+oz,.16,.08,.12,0,mul(GREEN,.7),ci)}
+  B.cyl.add(rx+.3,y+.08,rz-.3,.14,.16,.14,0,[.4,.12,.03],ci);tree(.3,-.3,low?.18:.24,low?.1:.18,PARKC[(h(0,16)*4)|0]);
+  for(const[a,b]of[[1,1],[-1,1],[-1,-1],[1,-1]])B.dark.add(rx+a*(w/2-.06),y+.16,rz+b*(dz/2-.06),.02,.32,.02,0,DARK,ci);
+  for(let t=0;t<8;t++){const u=t/8,a=u<.5?u*2:1,sd=u<.5?1:-1;B.gsph.add(rx+(a-.5)*(w-.12)*(u<.5?1:-1),y+.27-Math.sin((u*2%1)*Math.PI)*.05,rz+sd*(dz/2-.06),.035,.035,.035,0,t%2?LANTERN:mul(Gl,2),ci)}
+  if(hi)B.cyl.add(rx-.25,y+.25,rz+.2,.2,.02,.2,.4,DARK2,ci)}
+// Magnetbahn auf Dächern gleicher Höhe: Fahrweg auf Stützen, Endhaltestellen mit Bahnsteig
+const RAILC=[.42,.42,.46];
+const railNb=(i,j,tp)=>[0,1,2,3].filter(d=>{const n=at(i+DX[d],j+DZ[d]);return n&&n.rt===2&&n.m&&topOf(n.m)===tp});
+function roofRail(c,i,j,ci,tp,top,Gl){const x=wx(i),z=wz(j),y=top+.2,nb=railNb(i,j,tp),col=mul(Gl,2.2);
+  B.conc.add(x,top+.1,z,.09,.2,.09,0,RAILC,ci);B.conc.add(x,y,z,.2,.06,.2,0,RAILC,ci);
+  const dirs=nb.length?nb:[0,2];
+  for(const d of dirs){const l=nb.length?.5:.32,mx=x+DX[d]*l/2,mz=z+DZ[d]*l/2,X=d%2===0;B.conc.add(mx,y,mz,X?l:.2,.06,X?.2:l,0,RAILC,ci);
+    for(const sd of[-1,1])B.glow.add(mx+(X?0:sd*.105),y+.032,mz+(X?sd*.105:0),X?l:.012,.012,X?.012:l,0,col,ci)}
+  if(nb.length<=1){const ax=nb.length?(nb[0]%2===0?0:1):1;   // Haltestelle: Bahnsteige beidseitig, Glasdach, Leuchtschild
+    for(const sd of[-1,1]){const px=x+(ax?sd*.27:0),pz=z+(ax?0:sd*.27);B.dark.add(px,y-.01,pz,ax?.2:.7,.03,ax?.7:.2,0,DARK2,ci);B.glow.add(px+(ax?-sd*.1:0),y+.008,pz+(ax?0:-sd*.1),ax?.012:.7,.006,ax?.7:.012,0,[1.6,1.4,.3],ci);
+      B.dark.add(px+(ax?sd*.08:0),y+.17,pz+(ax?0:sd*.08),.02,.34,.02,0,DARK,ci)}
+    B.glass.add(x,y+.35,z,ax?.72:.8,.02,ax?.8:.72,0,GLASS,ci);B.glow.add(x,y+.37,z,ax?.02:.3,.06,ax?.3:.02,0,col,ci)}}
 function fills(){for(const[ci,i,j,k,q,sh,ox,oz]of FILLS){const c=G[ci],q2=(q+2)%4,px=ox+CSX[q]*.5,pz=oz+CSZ[q]*.5,y0=D+k*H,b=B['f'+c.s+sh];
   b.add(px,y0,pz,.5,H,.5,QROT[q2],mul(PF[c.c],.9+hash(i,j,k,1)*.2),ci);
   if(!hasF(c,k+1)||!concave(c,i,j,k+1,q))b.add(px,y0+H,pz,.5,.024,.5,QROT[q2],mul(PF[c.c],.4),ci);
@@ -1185,13 +1253,27 @@ function facadeScreen(c,i,j){const tp=topOf(c.m);if(tp<7||c.s===2||hash(i,j,50)>
 function drawScreen(c,i,j,ci,s){const{d,L,ad}=s,Gl=PG[c.c],{x0,x1,z0,z1}=extents(c,i,j,L),[px,pz,fw]=facePos(d,wx(i),wz(j),x0,x1,z0,z1),h=3*H-.1,cy=D+L*H+1.5*H,w=Math.min(.82,fw-.06);
   onFace(B.dark,d,px,pz,0,cy,.016,w+.05,h+.05,.03,DARK2,ci);onFace(B['adP'+ad],d,px,pz,0,cy,.033,w,h,1,ADC,ci);
   onFace(B.glow,d,px,pz,0,cy+h/2+.03,.03,w+.06,.014,.02,mul(Gl,2.2),ci);onFace(B.glow,d,px,pz,0,cy-h/2-.03,.03,w+.06,.014,.02,mul(Gl,2.2),ci)}
+// Schilder über mehrere Felder: [Richtung, Etage, Motiv, Breite entlang der Fassade, Höhe in Etagen]; Anker ist das Feld mit dem kleinsten Index entlang der Fassade
+const tIdx=(i,j,d)=>i*TX[d]+j*TZ[d];
+function signRect(i0,j0,k0,i1,j1,k1,d){const s0=tIdx(i0,j0,d),s1=tIdx(i1,j1,d),sm=Math.min(s0,s1),w=Math.min(6,Math.abs(s1-s0)+1),h=Math.min(6,Math.abs(k1-k0)+1),L=Math.min(k0,k1);
+  const ai=i0+TX[d]*(sm-s0),aj=j0+TZ[d]*(sm-s0);return{ai,aj,L,w,h,d,ok:signFits(ai,aj,d,L,w,h)}}
+function signFits(ai,aj,d,L,w,h){for(let q=0;q<w;q++){const a=ai+TX[d]*q,b=aj+TZ[d]*q;if(!inb(a,b))return false;const c=G[ix(a,b)];for(let k=L;k<L+h;k++)if(!hasF(c,k)||occ(a+DX[d],b+DZ[d],k))return false}return true}
+function signCover(i,j,d,k){for(let q=0;q<6;q++){const a=i-TX[d]*q,b=j-TZ[d]*q;if(!inb(a,b))break;const c=G[ix(a,b)];
+  for(let n=0;n<c.sg.length;n++){const g=c.sg[n];if(g[0]!==d)continue;const w=g.length>3?g[3]:1,h=g.length>3?g[4]:1;if(q<w&&k>=g[1]&&k<g[1]+h)return{n:ix(a,b),q:n,g}}}return null}
+const signKind=(w,h)=>w===1&&h===1?1:w===1&&h===2?2:3;   // 1 Wandschild, 2 Doppelschild, 3 Leinwand
+function canvasSign(i,j,ci,d,L,e,w,h,Gl){if(!signFits(i,j,d,L,w,h))return;const px=wx(i)+DX[d]*(.5-GAP),pz=wz(j)+DZ[d]*(.5-GAP),u=(w-1)/2,cw=w-.14,ch=h*H-.1,cy=D+L*H+h*H/2,ad=e%3,b=B[(cw/ch<.9?'adP':'ad')+ad];
+  onFace(B.dark,d,px,pz,u,cy,.016,cw+.05,ch+.05,.03,DARK2,ci);onFace(b,d,px,pz,u,cy,.034,cw,ch,1,ADC,ci);
+  onFace(B.glow,d,px,pz,u,cy+ch/2+.03,.03,cw+.06,.014,.02,mul(Gl,2.2),ci);onFace(B.glow,d,px,pz,u,cy-ch/2-.03,.03,cw+.06,.014,.02,mul(Gl,2.2),ci);
+  for(const sd of[-1,1])onFace(B.glow,d,px,pz,u+sd*(cw/2+.03),cy,.03,.014,ch+.06,.02,mul(Gl,1.6),ci)}
 function autoSign(c,i,j){if(pc(c.m)<2||hash(i,j,7)>(c.s===1||c.s===3?.62:.4))return[];
   const cand=[];for(let k=1;k<topOf(c.m);k++)if(hasF(c,k))cand.push(k);if(!cand.length)return[];const L=cand[Math.min(cand.length-1,Math.floor(hash(i,j,8)*Math.max(1,cand.length-1)))];
   const pref=[0,1,2,3].map(d=>[d,(isWalk(at(i+DX[d],j+DZ[d]))?2:0)+hash(i,j,d,10)]).sort((a,b)=>b[1]-a[1]).map(a=>a[0]);
   for(const d of pref)if(!occ(i+DX[d],j+DZ[d],L))return[[d,L,(hash(i,j,9)*16)|0]];return[]}
 function signs(c,i,j,ci,Gl,scr){const list=c.sg.length?c.sg:autoSign(c,i,j),x=wx(i),z=wz(j);
-  for(const[d,L,e]of list){if(!hasF(c,L)||occ(i+DX[d],j+DZ[d],L))continue;if(scr&&scr.d===d&&L>=scr.L-1&&L<scr.L+3)continue;
-    const two=hasF(c,L+1)&&!occ(i+DX[d],j+DZ[d],L+1),sh=two?H*1.7:H*.82,cy=D+L*H+(two?H:H/2),ex=extents(c,i,j,L),fx=x+DX[d]*(.5-GAP),fz=z+DZ[d]*(.5-GAP);
+  for(const sgn of list){const[d,L,e]=sgn,sw=sgn.length>3?sgn[3]:0,shh=sgn.length>3?sgn[4]:0;
+    if(sw&&signKind(sw,shh)===3){canvasSign(i,j,ci,d,L,e,sw,shh,Gl);continue}
+    if(!hasF(c,L)||occ(i+DX[d],j+DZ[d],L))continue;if(scr&&scr.d===d&&L>=scr.L-1&&L<scr.L+3)continue;
+    const two=(!sw||shh===2)&&hasF(c,L+1)&&!occ(i+DX[d],j+DZ[d],L+1),sh=two?H*1.7:H*.82,cy=D+L*H+(two?H:H/2),ex=extents(c,i,j,L),fx=x+DX[d]*(.5-GAP),fz=z+DZ[d]*(.5-GAP);
     let neg=!ex.shp[d],pos=!ex.shp[(d+3)%4];const cuts=CUTS.get(ci*100+L*4+d);if(cuts)for(const[cx,cz]of cuts){if((cx-fx)*TX[d]+(cz-fz)*TZ[d]<0)neg=false;else pos=false}
     let side=hash(i,j,L*4+d,30)<.5?-1:1;if(side<0&&!neg)side=pos?1:0;else if(side>0&&!pos)side=neg?-1:0;
     const u=side*.34,bx=fx+TX[d]*u,bz=fz+TZ[d]*u,wdt=.3,co=.04+wdt/2,sx=bx+DX[d]*co,sz=bz+DZ[d]*co,col=mul(hash(i,j,L,31)<.5?Gl:PG[(hash(i,j,L,32)*8)|0],2.6),r1=DROT[d]+Math.PI/2;
@@ -1702,6 +1784,9 @@ function extrude(cells,d,L,n,one){const changed=[];
   return changed}
 const colBox=(i,j,y0,y1)=>({x:wx(i),z:wz(j),y:(y0+y1)/2,sx:1.02,sy:Math.max(.02,y1-y0),sz:1.02});
 const cornerOf=(a,b)=>(a+1)%4===b?a:(b+1)%4===a?b:-1;
+// Zu welcher doppelten Werbetafel gehört dieses Dach? Liefert den Anker oder 0
+function wideOf(i,j){const c=at(i,j);if(!c||!c.m)return 0;const tp=topOf(c.m);if(c.bb===2||c.bb===3){const p=at(i+(c.bb===2?1:0),j+(c.bb===3?1:0));if(p&&p.m&&topOf(p.m)===tp)return ix(i,j)}
+  const a=at(i-1,j);if(a&&a.bb===2&&a.m&&topOf(a.m)===tp)return ix(i-1,j);const b=at(i,j-1);if(b&&b.bb===3&&b.m&&topOf(b.m)===tp)return ix(i,j-1);return 0}
 function makePlan(hit,tool){
   if(!hit)return null;const{i,j}=hit,ci=ix(i,j),c=G[ci],d=faceDir(hit.n),bh=!hit.water&&!hit.ground,P=(cells,box,run,snd,lv=0,pop=0)=>({cells,box,run,snd,lv,pop,col:TCOL[tool]});
   const lvBox=(a,b,k)=>colBox(a,b,D+k*H,D+(k+1)*H);
@@ -1718,13 +1803,15 @@ function makePlan(hit,tool){
     if(hit.ground)return(c.m&1)?null:P([ci],colBox(i,j,-.05,D+.03),()=>{c.g=0},'down');
     const k=hit.k;return P([ci],lvBox(i,j,k),()=>{c.m&=~(1<<k);fixCell(c)},'down',k,k)}
   if((tool==='park'||tool==='shape')&&hit.ground&&isPk(c)){const nl=pkLv(c)+1;if(nl>PKMAX)return null;return P([ci],colBox(i,j,D,D+PKH[nl]),()=>{c.pk=nl},'up',4+nl)}
+  if((tool==='street'||tool==='park')&&!hit.water&&!hit.ground&&hit.face==='top'&&c.m&&hit.k+1===topOf(c.m)){const v=tool==='park'?1:2,y0=D+(hit.k+1)*H;   // Dach: Garten oder Magnetbahn
+    const pl=P([ci],colBox(i,j,y0,y0+.3),()=>{if(c.rt===v)delete c.rt;else c.rt=v},'up',tool==='park'?4:2);pl.roofLbl=c.rt===v?(v===1?'Dachgarten entfernen':'Magnetbahn entfernen'):(v===1?'Dachgarten':'Magnetbahn');return pl}
   if(tool==='street'||tool==='park'){const gt=tool==='park'?2:state.ground,snd=tool==='park'?4:2,setG=()=>{if(gt===2&&c.g!==2)c.pk=0;c.g=gt};
     if(hit.water||hit.ground)return(c.m&1)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),setG,'up',snd);
     if(tool==='street'&&hasF(c,0))return P([ci],lvBox(i,j,0),()=>{c.m&=~1;c.g=gt;fixCell(c)},'up',snd);
     return hasF(c,0)||c.g===gt?null:P([ci],colBox(i,j,-.05,D+.03),setG,'up',snd)}
   if(!bh||!c.m)return null;
-  if(tool==='neon'){if(hit.face==='bottom')return null;if(hit.face==='top')return P([ci],colBox(i,j,D+(hit.k+1)*H,D+(hit.k+1)*H+.7),()=>{c.bb=c.bb===1?0:1},'paint');
-    const L=hit.k;return P([ci],{x:wx(i)+DX[d]*.6,z:wz(j)+DZ[d]*.6,y:D+L*H+H/2,sx:d%2?.6:.3,sy:H,sz:d%2?.3:.6},()=>{const k=c.sg.findIndex(s=>s[0]===d&&s[1]===L);if(k>=0)c.sg.splice(k,1);else c.sg.push([d,L,(Math.random()*16)|0])},'paint')}
+  if(tool==='neon'){if(hit.face==='bottom')return null;if(hit.face==='top'){const wb=wideOf(i,j);return P([ci],colBox(i,j,D+(hit.k+1)*H,D+(hit.k+1)*H+.7),()=>{if(wb)G[wb].bb=0;else c.bb=c.bb===1?0:1},'paint')}
+    const L=hit.k,cov=signCover(i,j,d,L);return P(cov?[cov.n]:[ci],{x:wx(i)+DX[d]*.6,z:wz(j)+DZ[d]*.6,y:D+L*H+H/2,sx:d%2?.6:.3,sy:H,sz:d%2?.3:.6},()=>{if(cov)G[cov.n].sg.splice(cov.q,1);else c.sg.push([d,L,(Math.random()*16)|0,1,1])},'paint')}
   if(tool==='paint'){const cs=comp(i,j);return P(cs,colBox(i,j,D,D+topOf(c.m)*H),()=>{const nc=state.color>=0?state.color:(c.c+1+((Math.random()*(PAL.length-1))|0))%PAL.length,ns=state.style>=0?state.style:(state.color>=0?null:(c.s+1)%4);cs.forEach(n=>{G[n].c=nc;if(ns!==null)G[n].s=ns})},'paint')}
   if(tool==='corner'){const lx=hit.p.x-wx(i),lz=hit.p.z-wz(j);
     if(hit.face==='top'&&Math.abs(lx)<.2&&Math.abs(lz)<.2){const cs=comp(i,j);return P(cs,colBox(i,j,D,D+topOf(c.m)*H),()=>{cs.forEach(n=>{G[n].cn=[0,1,2,3].map(()=>state.corner)})},'paint')}
@@ -1742,12 +1829,32 @@ function rectStart(hit,t){let yP=0,Lb=0;if(hit.water){}else if(hit.ground)yP=D+.
 function rectPlan(g){const r={i0:Math.min(g.i0,g.i1),i1:Math.max(g.i0,g.i1),j0:Math.min(g.j0,g.j1),j1:Math.max(g.j0,g.j1)},cells=rectCells(r),t=g.tool,Lb=g.Lb;
   let y0=D,y1=D+H,run,mh=1;cells.forEach(([i,j,ci])=>{mh=Math.max(mh,topOf(G[ci].m))});
   if(t==='build'){y0=D+Lb*H;y1=y0+H;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(Lb===0&&(isWalk(c)||isPk(c)))return;if(!c.m){c.s=g.s;c.c=g.c;if(g.cn)c.cn=g.cn.slice();else delete c.cn}c.m|=1<<Lb})}
+  else if((t==='street'||t==='park')&&g.roof){const v=t==='park'?1:2;y0=D+g.roof*H;y1=y0+.3;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m&&topOf(c.m)===g.roof)c.rt=v})}
   else if(t==='street'||t==='park'){const gt=t==='park'?2:state.ground;y0=-.05;y1=D+.04;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(!(c.m&1)){if(gt===2&&c.g!==2)c.pk=0;c.g=gt}})}
   else if(t==='erase'){y0=Lb>0?D+Lb*H:-.05;y1=Math.max(D+mh*H,y0+.1);run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];c.m&=rng(0,Lb);fixCell(c);if(Lb===0)c.g=0})}
   else if(t==='paint'){y1=D+mh*H;const nc=state.color>=0?state.color:pickC(),ns=state.style>=0?state.style:null;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m){c.c=nc;if(ns!==null)c.s=ns}})}
   else if(t==='corner'){y1=D+mh*H;run=()=>cells.forEach(([i,j,ci])=>{const c=G[ci];if(c.m)c.cn=[0,1,2,3].map(()=>state.corner)})}
   else return null;
   return{cells:cells.map(a=>a[2]),run,box:{x:(wx(r.i0)+wx(r.i1))/2,z:(wz(r.j0)+wz(r.j1))/2,y:(y0+y1)/2,sx:r.i1-r.i0+1.02,sy:y1-y0,sz:r.j1-r.j0+1.02},col:TCOL[t],w:r.i1-r.i0+1,h:r.j1-r.j0+1,snd:t==='erase'?'down':'up',lv:Lb,pop:t==='build'||t==='erase'?Lb:0}}
+// ============================================================ Magnetbahn-Züge
+const trainG=new THREE.Group();scene.add(trainG);const trains=[],trainPool=[];
+const trainBody=new THREE.MeshStandardMaterial({color:0xd8dce6,roughness:.3,metalness:.6,envMapIntensity:1.2}),trainWin=new THREE.MeshBasicMaterial({color:new THREE.Color(.6,1.8,2.4)}),trainLamp=new THREE.MeshBasicMaterial({color:new THREE.Color(3,2.6,2)});
+function trainMesh(){const g=new THREE.Group();for(let q=0;q<2;q++){const car=new THREE.Group(),b=new THREE.Mesh(GEO.box,trainBody);b.scale.set(.5,.12,.17);b.castShadow=true;car.add(b);
+    const wv=new THREE.Mesh(GEO.box,trainWin);wv.scale.set(.42,.03,.175);wv.position.y=.02;car.add(wv);const l=new THREE.Mesh(GEO.sph,trainLamp);l.scale.setScalar(.04);l.position.set(.25,-.01,0);car.add(l);g.add(car)}return g}
+function rebuildTrains(){trains.length=0;trainPool.forEach(m=>m.visible=false);const seen=new Set();let used=0;
+  for(let n=0;n<N*N;n++){const c=G[n];if(c.rt!==2||!c.m||seen.has(n))continue;const tp=topOf(c.m),comp=[],q=[n];seen.add(n);
+    while(q.length){const m=q.pop();comp.push(m);for(const d of railNb(m%N,(m/N)|0,tp)){const o=ix(m%N+DX[d],((m/N)|0)+DZ[d]);if(!seen.has(o)){seen.add(o);q.push(o)}}}
+    if(comp.length<2)continue;const deg=m=>railNb(m%N,(m/N)|0,tp).length,start=comp.find(m=>deg(m)===1)??comp[0],path=[start],vis=new Set([start]);let cur=start,pd=-1;
+    for(;;){const ds=railNb(cur%N,(cur/N)|0,tp).filter(d=>!vis.has(ix(cur%N+DX[d],((cur/N)|0)+DZ[d])));if(!ds.length)break;const d=ds.includes(pd)?pd:ds[0];cur=ix(cur%N+DX[d],((cur/N)|0)+DZ[d]);vis.add(cur);path.push(cur);pd=d}
+    const loop=path.length>2&&railNb(cur%N,(cur/N)|0,tp).some(d=>ix(cur%N+DX[d],((cur/N)|0)+DZ[d])===start);if(loop)path.push(start);
+    const y=D+tp*H+.33,pts=path.map(m=>new THREE.Vector3(wx(m%N),y,wz((m/N)|0))),cum=[0];for(let t=1;t<pts.length;t++)cum.push(cum[t-1]+pts[t].distanceTo(pts[t-1]));
+    let mesh=trainPool[used];if(!mesh){mesh=trainMesh();trainPool.push(mesh);trainG.add(mesh)}used++;mesh.visible=true;
+    trains.push({pts,cum,len:cum[cum.length-1],loop,s:hash(n,1,91)*cum[cum.length-1],dir:1,wait:0,mesh})}}
+const _tp=new THREE.Vector3();
+function trainAt(t,s){s=t.loop?((s%t.len)+t.len)%t.len:Math.max(0,Math.min(t.len,s));let k=1;while(k<t.cum.length-1&&t.cum[k]<s)k++;const a=t.pts[k-1],b=t.pts[k],u=(s-t.cum[k-1])/Math.max(1e-6,t.cum[k]-t.cum[k-1]);_tp.lerpVectors(a,b,u);return[_tp.x,_tp.y,_tp.z,b.x-a.x,b.z-a.z]}
+function updTrains(dt){for(const t of trains){if(t.wait>0)t.wait-=dt;else{const v=.95;
+    if(t.loop)t.s+=v*dt;else{const lim=t.dir>0?t.len-.3:.3;const dist=(lim-t.s)*t.dir,sp=Math.min(v,.25+dist*1.4);t.s+=t.dir*sp*dt;if(dist<=.01){t.s=lim;t.dir*=-1;t.wait=2.5}}}
+    t.mesh.children.forEach((car,q)=>{const[x,y,z,dx,dz]=trainAt(t,t.s-q*.56*t.dir*(t.loop?1:1));car.position.set(x,y,z);car.rotation.y=Math.atan2(-dz,dx)+(t.dir<0&&!t.loop?Math.PI:0)})}}
 // ============================================================ Vorschau: Geist-Kasten und Auswahl
 const ghostMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending});
 const ghost=new THREE.Mesh(GEO.box,ghostMat),ghostEdge=new THREE.LineSegments(new THREE.EdgesGeometry(GEO.box),new THREE.LineBasicMaterial({color:0xffffff,transparent:true}));
@@ -1761,14 +1868,16 @@ const aimFill=new THREE.MeshBasicMaterial({color:new THREE.Color(1.2,.4,1),trans
 const aimWall=new THREE.Group(),aimRoof=new THREE.Group();
 aimWall.add(new THREE.Mesh(frameGeo(.96,H*.94,.05),aimMat),new THREE.Mesh(new THREE.PlaneGeometry(.96,H*.94),aimFill));
 aimRoof.add(new THREE.Mesh(frameGeo(.96,.96,.05),aimMat),new THREE.Mesh(new THREE.PlaneGeometry(.96,.96),aimFill));
-faceHL.add(aimWall,aimRoof);
+faceHL.add(aimWall,aimRoof);let aimKey='1,1,0';
+function aimSize(w,h,roof){const key=w+','+h+','+(+!!roof);if(key===aimKey)return;aimKey=key;const g=roof?aimRoof:aimWall,fw=w-.04,fh=roof?h-.04:h*H-H*.06;
+  g.children[0].geometry.dispose();g.children[0].geometry=frameGeo(fw,fh,.05);g.children[1].geometry.dispose();g.children[1].geometry=new THREE.PlaneGeometry(fw,fh)}
 faceHL.visible=false;faceHL.renderOrder=5;scene.add(faceHL);let aimLbl=false;
 function neonAim(hit,x,y){if(!hit||hit.ground||hit.water||hit.face==='bottom'){faceHL.visible=false;if(aimLbl){label(null);aimLbl=false}return}
   const c=G[ix(hit.i,hit.j)],e=.012;let t;
   aimWall.visible=hit.face!=='top';aimRoof.visible=hit.face==='top';
-  if(hit.face==='top'){faceHL.position.set(wx(hit.i),D+(hit.k+1)*H+e,wz(hit.j));faceHL.rotation.set(-Math.PI/2,0,0);t=c.bb===1?'Werbetafel entfernen':'Werbetafel aufs Dach'}
+  if(hit.face==='top'){faceHL.position.set(wx(hit.i),D+(hit.k+1)*H+e,wz(hit.j));faceHL.rotation.set(-Math.PI/2,0,0);t=c.bb===1||wideOf(hit.i,hit.j)?'Werbetafel entfernen':'Werbetafel aufs Dach'}
   else{const d=faceDir(hit.n),L=hit.k;faceHL.position.set(wx(hit.i)+DX[d]*(.5+e),D+L*H+H/2,wz(hit.j)+DZ[d]*(.5+e));faceHL.rotation.set(0,Math.atan2(DX[d],DZ[d]),0);
-    t=c.sg.some(q=>q[0]===d&&q[1]===L)?'Wandschild entfernen':'Wandschild'}
+    const cov=signCover(hit.i,hit.j,d,L);t=cov?(signKind(cov.g.length>3?cov.g[3]:1,cov.g.length>3?cov.g[4]:1)===3?'Leinwand entfernen':'Wandschild entfernen'):'Wandschild'}
   faceHL.visible=true;label(tr(t),x,y);aimLbl=true}
 function showGhost(pl){if(!pl||!pl.box){ghost.visible=false;return}const b=pl.box;gT.p.set(b.x,b.y,b.z);gT.s.set(b.sx,b.sy,b.sz);if(!ghost.visible||gSnap){ghost.position.copy(gT.p);ghost.scale.copy(gT.s)}gSnap=false;ghost.visible=true;
   const c=pl.col;ghostMat.color.setRGB(c[0]*.5,c[1]*.5,c[2]*.5);ghostEdge.material.color.setRGB(...c)}
@@ -1809,7 +1918,7 @@ function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){
     return;
   }
   showRegion(null);showGhost(pl);
-  if(state.tool==='neon'){neonAim(pl?hit:null,x,y);ghost.visible=false}else if(faceHL.visible)neonAim(null)
+  if(state.tool==='neon'){aimSize(1,1,hit&&hit.face==='top');neonAim(pl?hit:null,x,y);ghost.visible=false}else{if(faceHL.visible)neonAim(null);if(pl&&pl.roofLbl){label(tr(pl.roofLbl),x,y);aimLbl=true}else if(aimLbl){label(null);aimLbl=false}}
 }
 // Ruhemodus: wird die Maus nicht bewegt, blendet die Oberfläche nach kurzer Zeit aus
 const IDLE_MS=3200;let idle=false,lastAct=performance.now(),mouseXY=null;
@@ -1838,14 +1947,15 @@ addEventListener('pointerdown',e=>{
   if((t==='park'||t==='shape')&&c&&hit.ground&&isPk(c)){gest={kind:'parkpull',...base,ci:ix(hit.i,hit.j),lv0:pkLv(c),lv:pkLv(c),baseSnap:null};ghost.visible=false}
   else if(t==='shape'){const r=regionOf(hit);if(r){gest={kind:'pull',...base,...r,delta:0,baseG:null,baseSnap:null};ghost.visible=false;showRegion(r)}else gest={kind:'click',...base}}
   else if(t!=='neon'){const{yP,Lb}=rectStart(hit,t),inh=c&&c.m&&state.color<0&&state.style<0;
-    gest={kind:'rect',...base,tool:t,yP,Lb,i0:hit.i,j0:hit.j,i1:hit.i,j1:hit.j,active:false,s:inh?c.s:pickS(),c:inh?c.c:pickC(),cn:inh?c.cn:undefined}}
+    gest={kind:'rect',...base,tool:t,yP,Lb,roof:(t==='street'||t==='park')&&c&&c.m&&!hit.ground&&hit.face==='top'&&hit.k+1===topOf(c.m)?hit.k+1:0,i0:hit.i,j0:hit.j,i1:hit.i,j1:hit.j,active:false,s:inh?c.s:pickS(),c:inh?c.c:pickC(),cn:inh?c.cn:undefined}}
+  else if(c&&c.m&&!hit.ground&&!hit.water&&hit.face!=='bottom'){gest={kind:'sign',...base,face:hit.face,d:hit.face==='top'?-1:faceDir(hit.n),i0:hit.i,j0:hit.j,k0:hit.k,rect:null}}
   else gest={kind:'click',...base};
   if(e.pointerType!=='mouse')lpT=setTimeout(()=>{if(gest&&!gest.moved&&ptrs.size===1&&gest.kind!=='pull'){const g=gest;gest=null;doAction(g.x,g.y,true);navigator.vibrate&&navigator.vibrate(18)}},480);
 },true);
 addEventListener('pointermove',e=>{
   if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(gest&&e.pointerId===gest.id){if(!gest.moved&&Math.hypot(e.clientX-gest.x,e.clientY-gest.y)>7){gest.moved=true;clearTimeout(lpT)}
-    if(gest.kind==='pull'&&gest.moved)pullMove(e);else if(gest.kind==='parkpull'&&gest.moved)parkMove(e);else if(gest.kind==='rect'&&gest.moved)rectMove(e);else if(gest.moved&&(gest.kind==='orbit'||gest.kind==='right')){ghost.visible=false;showRegion(null)}return}
+    if(gest.kind==='pull'&&gest.moved)pullMove(e);else if(gest.kind==='parkpull'&&gest.moved)parkMove(e);else if(gest.kind==='rect'&&gest.moved)rectMove(e);else if(gest.kind==='sign'&&gest.moved)signMove(e);else if(gest.moved&&(gest.kind==='orbit'||gest.kind==='right')){ghost.visible=false;showRegion(null)}return}
   if(e.pointerType==='mouse'&&!e.buttons&&e.target===canvas){hoverXY=[e.clientX,e.clientY];if(!hoverReq)hoverReq=requestAnimationFrame(()=>{hoverReq=0;if(hoverXY)hover(...hoverXY)})}
   else if(e.pointerType==='mouse'&&e.target!==canvas&&!gest){hoverXY=null;ghost.visible=false;showRegion(null)}});
 function endPtr(e,cancel){ptrs.delete(e.pointerId);clearTimeout(lpT);if(!ptrs.size){controls.enableRotate=true;controls.enablePan=true}
@@ -1856,7 +1966,25 @@ function endPtr(e,cancel){ptrs.delete(e.pointerId);clearTimeout(lpT);if(!ptrs.si
   if(g.kind==='pull'){if(!g.moved)doAction(g.x,g.y,false);else if(g.delta!==0){burstCells(g.changed||g.cells);sfx(g.delta>0?'up':'down',Math.abs(g.delta)+2);autosave();hintStep()}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);else showRegion(null);return}
   if(g.kind==='parkpull'){if(!g.moved)doAction(g.x,g.y,false);else if(g.lv!==g.lv0){burstCells([g.ci]);autosave();hintStep()}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);return}
   if(g.kind==='rect'){if(!g.active){if(!g.moved||performance.now()-g.t<350)doAction(g.x,g.y,false);ghost.visible=false;return}const pl=rectPlan(g);if(pl){pushUndo();apply(pl)}gSnap=true;if(e.pointerType==='mouse')hover(e.clientX,e.clientY);else ghost.visible=false;return}
+  if(g.kind==='sign'){neonAim(null);if(!g.moved||!g.rect||g.rect.single){doAction(g.x,g.y,false);return}if(g.rect.ok){pushUndo();apply(signPlan(g))}else sfx('nope');if(e.pointerType==='mouse')hover(e.clientX,e.clientY);return}
   if(g.kind==='click'&&!g.moved)doAction(g.x,g.y,false)}
+function signMove(e){const g=gest,hit=pick(e.clientX,e.clientY);if(!hit||hit.water||hit.ground)return;let r=g.rect;
+  if(g.face==='top'){if(hit.face!=='top'||hit.k!==g.k0)return;const di=hit.i-g.i0,dj=hit.j-g.j0;
+    if(!di&&!dj)r={single:true};else{const X=Math.abs(di)>=Math.abs(dj),ai=X?Math.min(g.i0,g.i0+Math.sign(di)):g.i0,aj=X?g.j0:Math.min(g.j0,g.j0+Math.sign(dj)),p=at(ai+(X?1:0),aj+(X?0:1)),a=at(ai,aj);
+      r={roof:true,ai,aj,bb:X?2:3,ok:!!(a&&p&&a.m&&p.m&&topOf(a.m)===g.k0+1&&topOf(p.m)===g.k0+1)}}
+    if(r.single){aimSize(1,1,true);neonAim({...g.hit},e.clientX,e.clientY)}
+    else{const X=r.bb===2;aimSize(X?2:1,X?1:2,true);aimRoof.visible=true;aimWall.visible=false;faceHL.position.set(wx(r.ai)+(X?.5:0),D+(g.k0+1)*H+.012,wz(r.aj)+(X?0:.5));faceHL.rotation.set(-Math.PI/2,0,0);faceHL.visible=true;
+      label(r.ok?tr('Doppelte Werbetafel'):tr('Kein Platz'),e.clientX,e.clientY);aimLbl=true}}
+  else{if(hit.face!=='side'||faceDir(hit.n)!==g.d)return;if(g.d%2===0?hit.i!==g.i0:hit.j!==g.j0)return;
+    r=signRect(g.i0,g.j0,g.k0,hit.i,hit.j,hit.k,g.d);if(r.w===1&&r.h===1)r.single=true;const d=g.d,u=(r.w-1)/2;
+    aimSize(r.w,r.h,false);aimWall.visible=true;aimRoof.visible=false;faceHL.position.set(wx(r.ai)+TX[d]*u+DX[d]*.512,D+r.L*H+r.h*H/2,wz(r.aj)+TZ[d]*u+DZ[d]*.512);faceHL.rotation.set(0,Math.atan2(DX[d],DZ[d]),0);faceHL.visible=true;
+    const kd=signKind(r.w,r.h);label(!r.ok?tr('Kein Platz'):kd===1?tr('Wandschild'):kd===2?tr('Doppelschild'):tr('Leinwand {w} × {h}',{w:r.w,h:r.h}),e.clientX,e.clientY);aimLbl=true}
+  g.rect=r}
+function signPlan(g){const r=g.rect;
+  if(r.roof)return{cells:[ix(r.ai,r.aj)],pop:0,run:()=>{const X=r.bb===2,a=G[ix(r.ai,r.aj)],p=G[ix(r.ai+(X?1:0),r.aj+(X?0:1))];for(const n of[ix(r.ai,r.aj),ix(r.ai+(X?1:0),r.aj+(X?0:1))]){const w=wideOf(n%N,(n/N)|0);if(w)G[w].bb=0}a.bb=r.bb;p.bb=0}};
+  const cells=[];for(let q=0;q<r.w;q++)cells.push(ix(r.ai+TX[r.d]*q,r.aj+TZ[r.d]*q));
+  return{cells:[cells[0]],pop:0,run:()=>{for(let q=0;q<r.w;q++)for(let k=r.L;k<r.L+r.h;k++){const cov=signCover(r.ai+TX[r.d]*q,r.aj+TZ[r.d]*q,r.d,k);if(cov)G[cov.n].sg.splice(cov.q,1)}
+    G[cells[0]].sg.push([r.d,r.L,(Math.random()*16)|0,r.w,r.h])}}}
 addEventListener('pointerup',e=>endPtr(e,false));addEventListener('pointercancel',e=>endPtr(e,true));
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 function cancelGesture(){if(!gest)return;clearTimeout(lpT);if((gest.kind==='pull'||gest.kind==='parkpull')&&gest.baseSnap){restore(gest.baseSnap);undoS.pop();updUndo()}gest=null;ghost.visible=false;showRegion(null);label(null)}
@@ -1896,14 +2024,14 @@ function keyMove(dt){const h=k=>keys.has(k),fast=h('shift')?2.2:1,k=1-Math.exp(-
 const TOOLS=[['build','Bauen','<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12 4 7.5"/>','1','Klick setzt einen Block. An einer Wand landet er auf genau dieser Höhe, auch frei auskragend. Ziehen legt eine Fläche.'],
   ['shape','Formen','<path d="M4 15l8 4 8-4-8-4z"/><path d="M12 3v7M9 5.5 12 3l3 2.5"/>','2','Dach, Unterseite oder Fassade greifen und ziehen (Push/Pull).'],
   ['corner','Kanten','<path d="M4 20v-9a7 7 0 0 1 7-7h9"/><path d="M4 20h4M20 4v4"/>','3','Ecken eckig, schräg, rund oder hohl. Innenecken werden gefüllt.'],
-  ['street','Straße','<path d="M8 3 5 21M16 3l3 18M12 4v3M12 10.5v3M12 17v3"/>','4','Straße oder Platz. Zwei Straßen nebeneinander werden breit.'],
-  ['park','Park','<path d="M12 21v-6"/><path d="M12 3c3.5 0 6 2.6 6 5.6 0 3.2-2.7 5.4-6 5.4S6 11.8 6 8.6C6 5.6 8.5 3 12 3z"/>','5','Park anlegen. Auf einem Park klicken oder hochziehen: Wiese, Bäume, große Bäume, Statue, Brunnen, Monument.'],
-  ['neon','Neon','<path d="M13 2 5 13h6l-1 9 8-11h-6z"/>','6','Leuchtschild an der Fassade, Werbetafel auf dem Dach.'],
+  ['street','Straße','<path d="M8 3 5 21M16 3l3 18M12 4v3M12 10.5v3M12 17v3"/>','4','Straße oder Platz. Zwei Straßen nebeneinander werden breit. Auf Dächern: Magnetbahn.'],
+  ['park','Park','<path d="M12 21v-6"/><path d="M12 3c3.5 0 6 2.6 6 5.6 0 3.2-2.7 5.4-6 5.4S6 11.8 6 8.6C6 5.6 8.5 3 12 3z"/>','5','Park anlegen. Auf einem Park klicken oder hochziehen: Wiese, Bäume, große Bäume, Statue, Brunnen, Monument. Auf einem Dach: Dachgarten.'],
+  ['neon','Neon','<path d="M13 2 5 13h6l-1 9 8-11h-6z"/>','6','Leuchtschild, Doppelschild oder Leinwand an der Fassade, Werbetafel auf dem Dach.'],
   ['paint','Gestalten','<path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z"/>','7','Farbe und Stil für ein ganzes Gebäude.'],
   ['erase','Abriss','<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>','8','Klick nimmt genau diese Etage weg. Ziehen schneidet ab dieser Höhe.']];
 const coarse=matchMedia('(pointer:coarse)').matches;
-const HINTS={park:(coarse?'Tippen':'Klick')+' oder Fläche ziehen legt eine Wiese an · auf einem Park '+(coarse?'tippen':'klicken')+' oder hochziehen: Bäume, Statue, Brunnen, Monument',
-  neon:'Klick auf eine Fassade setzt ein Leuchtschild · aufs Dach: Werbetafel an oder aus',erase:(coarse?'Tippen':'Klick')+' nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe'};
+const HINTS={park:(coarse?'Tippen':'Klick')+' oder Fläche ziehen legt eine Wiese an · auf einem Park '+(coarse?'tippen':'klicken')+' oder hochziehen: Bäume, Statue, Brunnen, Monument',parkRoof:' · auf einem Dach: Dachgarten',
+  neon:(coarse?'Tippen':'Klick')+' auf eine Fassade setzt ein Leuchtschild · Ziehen über zwei Etagen: Doppelschild, ab drei Feldern: Leinwand · aufs Dach: Werbetafel, über zwei Dächer gezogen doppelt',erase:(coarse?'Tippen':'Klick')+' nimmt genau diese Etage weg, auch mittendrin · Ziehen schneidet ab dieser Höhe'};
 $('#tools').innerHTML=TOOLS.map(([id,n,svg,k,tip])=>`<button class="tool" data-t="${id}" aria-pressed="${id==='build'}" title="${n} (${k}): ${tip}" aria-label="${n}"><svg class="i" viewBox="0 0 24 24">${svg}</svg><span>${n}</span></button>`).join('');
 $('#sws').innerHTML=`<button class="sw rnd" data-c="-1" aria-pressed="true" title="Zufallsfarbe" aria-label="Zufallsfarbe"><i></i></button>`+PAL.map((p,n)=>`<button class="sw" data-c="${n}" aria-pressed="false" title="${p.n}" aria-label="Farbe ${p.n}" style="--f:${p.f};--g:${p.g}"><i></i></button>`).join('');
 $('#sts').innerHTML=`<button class="st" data-s="-1" aria-pressed="true">Zufall</button>`+STY.map((s,n)=>`<button class="st" data-s="${n}" aria-pressed="false">${s}</button>`).join('');
@@ -1923,7 +2051,7 @@ function translateTools(){
 translateLabels();
 translateTools();
 const press=(sel,attr,val)=>document.querySelectorAll(sel).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset[attr]===String(val))));
-function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowShape').hidden=t!=='shape';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=tr(HINTS[t]||'');sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
+function setTool(t,quiet){state.tool=t;if(coarse&&!quiet)toast(TOOLS.find(a=>a[0]===t)[1]);press('.tool','t',t);$('#rowPal').hidden=!(t==='build'||t==='paint');$('#rowCorner').hidden=t!=='corner';$('#rowStreet').hidden=t!=='street';$('#rowShape').hidden=t!=='shape';$('#rowHint').hidden=!HINTS[t];$('#rowHintP').textContent=tr(HINTS[t]||'')+(t==='park'?tr(HINTS.parkRoof):'');sfx('ui');gSnap=true;showRegion(null);ghost.visible=false;if(hoverXY&&lastPtr==='mouse')hover(...hoverXY)}
 $('#tools').onclick=e=>{const b=e.target.closest('.tool');if(b)setTool(b.dataset.t)};
 $('#sws').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;state.color=+b.dataset.c;press('.sw','c',state.color);sfx('ui')};
 $('#sts').onclick=e=>{const b=e.target.closest('.st');if(!b)return;state.style=+b.dataset.s;press('#sts .st','s',state.style);sfx('ui')};
@@ -1943,7 +2071,7 @@ function stats(){
   $('#stat').textContent=tr(count===1?'{count} Etage · höchster Turm {height}':'{count} Etagen · höchster Turm {height}',{count,height});
   $('#dist').textContent=districtLabel()
 }
-function rebuild(){streetMarks.clear();buildAll();buildStreetGraph();rebuildAux();updLanes();rebuildPeds();rebuildGCars();stats()}
+function rebuild(){streetMarks.clear();buildAll();buildStreetGraph();rebuildAux();rebuildTrains();updLanes();rebuildPeds();rebuildGCars();stats()}
 let glitchV=0;const glitch=v=>{glitchV=Math.max(glitchV,v)};
 const hintEl=$('#hint');let hintN=0;function updateIntroHint(){hintEl.textContent=tr(coarse?'Ein Finger baut und zieht Flächen · zwei Finger drehen und zoomen · lange drücken reißt ab':'Linke Maustaste baut und zieht · rechte dreht · Rad zoomt · WASD schiebt · Q/E dreht')}
 updateIntroHint();
@@ -1984,7 +2112,7 @@ $('#language').onchange=e=>{
   document.documentElement.lang=language;
   try{localStorage.setItem(languageKey,language)}catch(err){}
   translateLabels();translateTools();stats();updateIntroHint();updatePullHint();updateSaveNote();
-  $('#rowHintP').textContent=tr(HINTS[state.tool]||'');
+  $('#rowHintP').textContent=tr(HINTS[state.tool]||'')+(state.tool==='park'?tr(HINTS.parkRoof):'');
   $('#tLbl').textContent=tr(tiltOn?'An':'Aus');
   $('#qLbl').textContent=tr(Q?'Hoch':'Schonend');
   $('#rLbl').textContent=tr(retro?'An':'Aus');
@@ -2029,9 +2157,9 @@ if(GS&&!RM){const o={r:46,phi:.55,th:1.6};camAt(o.r,o.phi,o.th);intro=GS.to(o,{r
 let last=performance.now(),fpsT=0,fpsN=0,fpsDone=false;const tiltV3=new THREE.Vector3();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.value=T;fx.uniforms.uTime.value=T;
   keyMove(dt);controls.update();if(ghost.visible){ghost.position.lerp(gT.p,.35);ghost.scale.lerp(gT.s,.35);ghostMat.opacity=.1+.06*Math.sin(T*6)}
-  if(faceHL.visible){if(!hoverXY||state.tool!=='neon'||gest)neonAim(null);else aimMat.opacity=.8+.2*Math.sin(T*7)}
+  if(faceHL.visible){if((!hoverXY||state.tool!=='neon'||gest)&&!(gest&&gest.kind==='sign'))neonAim(null);else aimMat.opacity=.8+.2*Math.sin(T*7)}
   if(hl.count)hlMat.opacity=.3+.12*Math.sin(T*5);
-  updCars(dt);updGCars(dt);updPeds(dt);updSparks(dt);
+  updCars(dt);updGCars(dt);updPeds(dt);updSparks(dt);updTrains(dt);
   if(updWeather(dt)||atmoDirty){atmoDirty=false;computeAP();applyAP()}
   matBlink.color.setScalar(Math.sin(T*2.6)>.55?1:.08);matSign.color.setScalar(.93+.07*Math.sin(T*1.7)*(Math.random()<.02?-6:1));
   for(let a=0;a<3;a++){const ph=T/7+a*.33,f=ph%1,id=(Math.floor(ph)*3+a*2)%6;if(matAd[a].map!==tex.ads[id])matAd[a].map=tex.ads[id];matAd[a].color.setScalar(f<.04?(Math.random()<.5?2.2:.25):1);
@@ -2046,7 +2174,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.val
   if(!fpsDone){fpsT+=dt;if(fpsT>2){fpsN++;if(fpsT>6){fpsDone=true;const fps=fpsN/4;if(fps<24&&Q&&!qManual){setQuality(0,false);toast('Effekte reduziert, damit alles flüssig läuft')}}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0';setTimeout(()=>l.remove(),900)});
-window.NEON={faceHL,setHour,setWeather,nextDaytime,wth,get hour(){return hour},AP,idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
+window.NEON={trains,signCover,wideOf,faceHL,setHour,setWeather,nextDaytime,wth,get hour(){return hour},AP,idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
 <script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent=tr('three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.');}},15000);</script>
