@@ -1246,17 +1246,31 @@ function railBeam(ax,ay,az,bx,by,bz,col,ci,deck){const X=Math.abs(bx-ax)>Math.ab
   B.conc.addR(mx,my,mz,l,.06,.2,ry,rise,RAILC,ci);
   for(const sd of[-1,1])B.glow.addR(mx+(X?0:sd*.105),my+.032,mz+(X?sd*.105:0),l,.012,.012,ry,rise,col,ci);
   if(deck){B.dark.addR(mx,my-.075,mz,l,.07,.1,ry,rise,DARK2,ci);for(const sd of[-1,1])B.dark.addR(mx+(X?0:sd*.1),my-.04,mz+(X?sd*.1:0),l,.02,.015,ry,rise,DARK,ci)}}
-function roofRail(c,i,j,ci,tp,top,Gl){const x=wx(i),z=wz(j),y=railY(tp),eg=railEdges(i,j),col=mul(Gl,2.2);
-  B.conc.add(x,top+.1,z,.09,.2,.09,0,RAILC,ci);B.conc.add(x,y,z,.2,.06,.2,0,RAILC,ci);
-  for(const e of eg){if(e.d!==0&&e.d!==1)continue;const bi=e.n%N,bj=(e.n/N)|0,yb=railY(e.lb);railBeam(x,y,z,wx(bi),yb,wz(bj),col,ci,e.gap>0);
-    if(e.gap>2){const span=e.gap+1,cnt=Math.ceil(span/3)-1;   // Stelzen: freie Spannweite höchstens etwa drei Felder
-      for(let q=1;q<=cnt;q++){const t=Math.round(q*span/(cnt+1)),a=i+DX[e.d]*t,b=j+DZ[e.d]*t,cc=G[ix(a,b)],yt=y+(yb-y)*t/span-.11,yb0=cc.m?D+topOf(cc.m)*H:cc.g?D+.01:0;
-        B.conc.add(wx(a),(yt+yb0)/2,wz(b),.1,yt-yb0,.1,0,RAILC,ci);B.conc.add(wx(a),yb0+.02,wz(b),.2,.04,.2,0,RAILC,ci);B.glow.add(wx(a),yt-.06,wz(b),.12,.012,.12,0,col,ci)}}}
-  if(!eg.length)for(const d of[0,2]){const mx=x+DX[d]*.16;B.conc.add(mx,y,z,.32,.06,.2,0,RAILC,ci);for(const sd of[-1,1])B.glow.add(mx,y+.032,z+sd*.105,.32,.012,.012,0,col,ci)}
+// Gleisbild je Feld: Gerade für gegenüberliegende Anschlüsse, Viertelkreis-Kurve für jedes rechtwinklige Paar (so entstehen Kurven, T- und Sternweichen)
+const RAILG=[.5,1.7,2.6];
+function railArcPt(x,z,a,b,t,r){const ca=Math.cos(t),sa=Math.sin(t),cx=x+.5*(DX[a]+DX[b]),cz=z+.5*(DZ[a]+DZ[b]);return[cx-r*(DX[b]*ca+DX[a]*sa),cz-r*(DZ[b]*ca+DZ[a]*sa)]}
+function railArc(x,y,z,a,b,ci){const n=7;for(const[r,bk,w,h,dy,col]of[[.5,B.conc,.2,.06,0,RAILC],[.395,B.glow,.012,.012,.032,RAILG],[.605,B.glow,.012,.012,.032,RAILG]])
+  for(let k=0;k<n;k++){const[x0,z0]=railArcPt(x,z,a,b,k/n*Math.PI/2,r),[x1,z1]=railArcPt(x,z,a,b,(k+1)/n*Math.PI/2,r),dx=x1-x0,dz=z1-z0;
+    bk.add((x0+x1)/2,y+dy,(z0+z1)/2,Math.hypot(dx,dz)+(bk===B.conc?.02:.004),h,w,Math.atan2(-dz,dx),col,ci)}}
+function railStraight(x0,y,z0,x1,z1,ci,deck){const X=Math.abs(x1-x0)>Math.abs(z1-z0),l=Math.abs(X?x1-x0:z1-z0),mx=(x0+x1)/2,mz=(z0+z1)/2;
+  B.conc.add(mx,y,mz,X?l:.2,.06,X?.2:l,0,RAILC,ci);for(const sd of[-1,1])B.glow.add(mx+(X?0:sd*.105),y+.032,mz+(X?sd*.105:0),X?l:.012,.012,X?.012:l,0,RAILG,ci);
+  if(deck){B.dark.add(mx,y-.075,mz,X?l:.1,.07,X?.1:l,0,DARK2,ci);for(const sd of[-1,1])B.dark.add(mx+(X?0:sd*.1),y-.04,mz+(X?sd*.1:0),X?l:.015,.02,X?.015:l,0,DARK,ci)}}
+function roofRail(c,i,j,ci,tp,top,Gl){const x=wx(i),z=wz(j),y=railY(tp),eg=railEdges(i,j),E=new Set(eg.map(e=>e.d));
+  let straight=false;for(const d of[0,1])if(E.has(d)&&E.has(d+2)){railStraight(x-DX[d]*.5,y,z-DZ[d]*.5,x+DX[d]*.5,z+DZ[d]*.5,ci);straight=true}
+  const arcs=[];for(let d=0;d<4;d++){const e=(d+1)%4;if(E.has(d)&&E.has(e)){railArc(x,y,z,d,e,ci);arcs.push([d,e])}}
+  if(eg.length===1)railStraight(x,y,z,x+DX[eg[0].d]*.5,z+DZ[eg[0].d]*.5,ci);
+  if(!eg.length)railStraight(x-.32,y,z,x+.32,z,ci);
+  // Stütze unter dem Gleis: in der Mitte, bei reinen Kurven im Scheitel des Bogens
+  const[px,pz]=straight||!arcs.length?[x,z]:railArcPt(x,z,arcs[0][0],arcs[0][1],Math.PI/4,.5);B.conc.add(px,(top+y)/2-.015,pz,.09,y-top-.03,.09,0,RAILC,ci);
+  for(const e of eg){if(e.d!==0&&e.d!==1||!e.gap)continue;const bi=e.n%N,bj=(e.n/N)|0;   // Brücke von Feldrand zu Feldrand
+    railStraight(x+DX[e.d]*.5,y,z+DZ[e.d]*.5,wx(bi)-DX[e.d]*.5,wz(bj)-DZ[e.d]*.5,ci,true);
+    if(e.gap>2){const span=e.gap+1,cnt=Math.ceil(span/3)-1;
+      for(let q=1;q<=cnt;q++){const t=Math.round(q*span/(cnt+1)),a=i+DX[e.d]*t,b=j+DZ[e.d]*t,cc=G[ix(a,b)],yt=y-.11,yb0=cc.m?D+topOf(cc.m)*H:cc.g?D+.01:0;
+        B.conc.add(wx(a),(yt+yb0)/2,wz(b),.1,yt-yb0,.1,0,RAILC,ci);B.conc.add(wx(a),yb0+.02,wz(b),.2,.04,.2,0,RAILC,ci);B.glow.add(wx(a),yt-.06,wz(b),.12,.012,.12,0,RAILG,ci)}}}
   if(eg.length<=1){const ax=eg.length?(eg[0].d%2===0?0:1):1;   // Haltestelle: Bahnsteige beidseitig, Glasdach, Leuchtschild
     for(const sd of[-1,1]){const px=x+(ax?sd*.27:0),pz=z+(ax?0:sd*.27);B.dark.add(px,y-.01,pz,ax?.2:.7,.03,ax?.7:.2,0,DARK2,ci);B.glow.add(px+(ax?-sd*.1:0),y+.008,pz+(ax?0:-sd*.1),ax?.012:.7,.006,ax?.7:.012,0,[1.6,1.4,.3],ci);
       B.dark.add(px+(ax?sd*.08:0),y+.17,pz+(ax?0:sd*.08),.02,.34,.02,0,DARK,ci)}
-    B.glass.add(x,y+.35,z,ax?.72:.8,.02,ax?.8:.72,0,GLASS,ci);B.glow.add(x,y+.37,z,ax?.02:.3,.06,ax?.3:.02,0,col,ci)}}
+    B.glass.add(x,y+.35,z,ax?.72:.8,.02,ax?.8:.72,0,GLASS,ci);B.glow.add(x,y+.37,z,ax?.02:.3,.06,ax?.3:.02,0,RAILG,ci)}}
 function fills(){for(const[ci,i,j,k,q,sh,ox,oz]of FILLS){const c=G[ci],q2=(q+2)%4,px=ox+CSX[q]*.5,pz=oz+CSZ[q]*.5,y0=D+k*H,b=B['f'+c.s+sh];
   b.add(px,y0,pz,.5,H,.5,QROT[q2],mul(PF[c.c],.9+hash(i,j,k,1)*.2),ci);
   if(!hasF(c,k+1)||!concave(c,i,j,k+1,q))b.add(px,y0+H,pz,.5,.024,.5,QROT[q2],mul(PF[c.c],.4),ci);
@@ -1863,7 +1877,14 @@ function rebuildTrains(){trains.length=0;trainPool.forEach(m=>m.visible=false);c
     if(comp.length<2)continue;const start=comp.find(m=>EG.get(m).length===1)??comp[0],path=[start],vis=new Set([start]);let cur=start,pd=-1;
     for(;;){const es=EG.get(cur).filter(e=>!vis.has(e.n));if(!es.length)break;const e=es.find(x=>x.d===pd)||es[0];cur=e.n;vis.add(cur);path.push(cur);pd=e.d}
     const loop=path.length>2&&EG.get(cur).some(e=>e.n===start);if(loop)path.push(start);
-    const pts=path.map(m=>new THREE.Vector3(wx(m%N),railY(topOf(G[m].m))+.13,wz((m/N)|0))),cum=[0];for(let t=1;t<pts.length;t++)cum.push(cum[t-1]+pts[t].distanceTo(pts[t-1]));
+    const side=(m,o)=>{const dx=Math.sign(o%N-m%N),dz=Math.sign(((o/N)|0)-((m/N)|0));return dx>0?0:dz>0?1:dx<0?2:3},pts=[];
+    for(let q=0;q<path.length;q++){const m=path[q],x=wx(m%N),z=wz((m/N)|0),y=railY(topOf(G[m].m))+.13;
+      const pv=q>0?path[q-1]:loop?path[path.length-2]:-1,nx=q<path.length-1?path[q+1]:loop?path[1]:-1;
+      if(pv>=0&&nx>=0){const a=side(m,pv),b=side(m,nx);if(a%2!==b%2){const rev=(a+1)%4!==b,aa=rev?b:a,bb=rev?a:b,arc=[];
+        for(let k=0;k<=8;k++){const[ax,az]=railArcPt(x,z,aa,bb,k/8*Math.PI/2,.5);arc.push(new THREE.Vector3(ax,y,az))}if(rev)arc.reverse();
+        if(q===0||(loop&&q===path.length-1)){if(q===0)pts.push(...arc.slice(4));else pts.push(...arc.slice(0,5))}else pts.push(...arc);continue}}
+      pts.push(new THREE.Vector3(x,y,z))}
+    const cum=[0];for(let t=1;t<pts.length;t++)cum.push(cum[t-1]+pts[t].distanceTo(pts[t-1]));
     let mesh=trainPool[used];if(!mesh){mesh=trainMesh();trainPool.push(mesh);trainG.add(mesh)}used++;mesh.visible=true;
     trains.push({pts,cum,len:cum[cum.length-1],loop,s:hash(n,1,91)*cum[cum.length-1],dir:1,wait:0,mesh})}}
 const _tp=new THREE.Vector3();
