@@ -132,6 +132,10 @@ const english={
   "Wiederholen (Strg+Y)": "Redo (Ctrl+Y)",
   "Wiederholen": "Redo",
   "Wetter": "Weather",
+  "Wandschild": "Wall sign",
+  "Wandschild entfernen": "Remove wall sign",
+  "Werbetafel aufs Dach": "Roof billboard",
+  "Werbetafel entfernen": "Remove roof billboard",
   "mehrere möglich": "pick several",
   "Tageszeit": "Time of day",
   "Tageszeit: {name}": "Time of day: {name}",
@@ -1748,6 +1752,24 @@ function rectPlan(g){const r={i0:Math.min(g.i0,g.i1),i1:Math.max(g.i0,g.i1),j0:M
 const ghostMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending});
 const ghost=new THREE.Mesh(GEO.box,ghostMat),ghostEdge=new THREE.LineSegments(new THREE.EdgesGeometry(GEO.box),new THREE.LineBasicMaterial({color:0xffffff,transparent:true}));
 ghost.add(ghostEdge);ghost.visible=false;ghost.renderOrder=5;scene.add(ghost);const gT={p:new THREE.Vector3(),s:new THREE.Vector3(1,1,1)};let gSnap=true;
+// Zielhilfe für das Neon-Werkzeug: helle Kontur genau auf der Fläche unter dem Zeiger und ein kurzes Etikett daneben
+const faceHL=new THREE.Group();
+function frameGeo(w,h,b){const sh=new THREE.Shape([[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>new THREE.Vector2(x,y)));
+  sh.holes.push(new THREE.Path([[-w/2+b,-h/2+b],[-w/2+b,h/2-b],[w/2-b,h/2-b],[w/2-b,-h/2+b]].map(([x,y])=>new THREE.Vector2(x,y))));return new THREE.ShapeGeometry(sh)}
+const aimMat=new THREE.MeshBasicMaterial({color:new THREE.Color(3,2.6,3.6),transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+const aimFill=new THREE.MeshBasicMaterial({color:new THREE.Color(1.2,.4,1),transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+const aimWall=new THREE.Group(),aimRoof=new THREE.Group();
+aimWall.add(new THREE.Mesh(frameGeo(.96,H*.94,.05),aimMat),new THREE.Mesh(new THREE.PlaneGeometry(.96,H*.94),aimFill));
+aimRoof.add(new THREE.Mesh(frameGeo(.96,.96,.05),aimMat),new THREE.Mesh(new THREE.PlaneGeometry(.96,.96),aimFill));
+faceHL.add(aimWall,aimRoof);
+faceHL.visible=false;faceHL.renderOrder=5;scene.add(faceHL);let aimLbl=false;
+function neonAim(hit,x,y){if(!hit||hit.ground||hit.water||hit.face==='bottom'){faceHL.visible=false;if(aimLbl){label(null);aimLbl=false}return}
+  const c=G[ix(hit.i,hit.j)],e=.012;let t;
+  aimWall.visible=hit.face!=='top';aimRoof.visible=hit.face==='top';
+  if(hit.face==='top'){faceHL.position.set(wx(hit.i),D+(hit.k+1)*H+e,wz(hit.j));faceHL.rotation.set(-Math.PI/2,0,0);t=c.bb===1?'Werbetafel entfernen':'Werbetafel aufs Dach'}
+  else{const d=faceDir(hit.n),L=hit.k;faceHL.position.set(wx(hit.i)+DX[d]*(.5+e),D+L*H+H/2,wz(hit.j)+DZ[d]*(.5+e));faceHL.rotation.set(0,Math.atan2(DX[d],DZ[d]),0);
+    t=c.sg.some(q=>q[0]===d&&q[1]===L)?'Wandschild entfernen':'Wandschild'}
+  faceHL.visible=true;label(tr(t),x,y);aimLbl=true}
 function showGhost(pl){if(!pl||!pl.box){ghost.visible=false;return}const b=pl.box;gT.p.set(b.x,b.y,b.z);gT.s.set(b.sx,b.sy,b.sz);if(!ghost.visible||gSnap){ghost.position.copy(gT.p);ghost.scale.copy(gT.s)}gSnap=false;ghost.visible=true;
   const c=pl.col;ghostMat.color.setRGB(c[0]*.5,c[1]*.5,c[2]*.5);ghostEdge.material.color.setRGB(...c)}
 const hlMat=new THREE.MeshBasicMaterial({color:new THREE.Color(1.4,.25,1.05),transparent:true,opacity:.4,blending:THREE.AdditiveBlending,depthWrite:false});
@@ -1786,7 +1808,8 @@ function hover(x,y){if(gest)return;const hit=pick(x,y);if(state.tool==='shape'){
     showRegion(pl?{face:'building',cells:pl.cells}:null);
     return;
   }
-  showRegion(null);showGhost(pl)
+  showRegion(null);showGhost(pl);
+  if(state.tool==='neon'){neonAim(pl?hit:null,x,y);ghost.visible=false}else if(faceHL.visible)neonAim(null)
 }
 // Ruhemodus: wird die Maus nicht bewegt, blendet die Oberfläche nach kurzer Zeit aus
 const IDLE_MS=3200;let idle=false,lastAct=performance.now(),mouseXY=null;
@@ -1794,7 +1817,7 @@ const uiBoxes=()=>[...document.querySelectorAll('.top .brand,.top .btns,.daybar,
 function wake(){lastAct=performance.now();if(idle){idle=false;document.body.classList.remove('idle')}}
 function canIdle(){const a=document.activeElement;return menu.hidden&&wxMenu.hidden&&dlg.hidden&&!gest&&!overUI()&&!document.body.classList.contains('photo')&&!(a&&a!==canvas&&a.closest&&a.closest('.ui')&&a.matches(':focus-visible'))}
 function overUI(){if(!mouseXY)return false;const[x,y]=mouseXY;return uiBoxes().some(r=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom)}   // Maus ruht über einer Leiste
-function goIdle(){idle=true;document.body.classList.add('idle');ghost.visible=false;showRegion(null);label(null)}
+function goIdle(){idle=true;document.body.classList.add('idle');ghost.visible=false;showRegion(null);neonAim(null);label(null)}
 setInterval(()=>{if(!idle&&!document.hidden&&performance.now()-lastAct>IDLE_MS&&canIdle())goIdle()},250);
 addEventListener('pointerdown',e=>{   // erster Tipp auf eine ausgeblendete Leiste holt sie zurück, statt darunter zu bauen
   if(e.pointerType==='mouse')mouseXY=[e.clientX,e.clientY];
@@ -2006,6 +2029,7 @@ if(GS&&!RM){const o={r:46,phi:.55,th:1.6};camAt(o.r,o.phi,o.th);intro=GS.to(o,{r
 let last=performance.now(),fpsT=0,fpsN=0,fpsDone=false;const tiltV3=new THREE.Vector3();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.value=T;fx.uniforms.uTime.value=T;
   keyMove(dt);controls.update();if(ghost.visible){ghost.position.lerp(gT.p,.35);ghost.scale.lerp(gT.s,.35);ghostMat.opacity=.1+.06*Math.sin(T*6)}
+  if(faceHL.visible){if(!hoverXY||state.tool!=='neon'||gest)neonAim(null);else aimMat.opacity=.8+.2*Math.sin(T*7)}
   if(hl.count)hlMat.opacity=.3+.12*Math.sin(T*5);
   updCars(dt);updGCars(dt);updPeds(dt);updSparks(dt);
   if(updWeather(dt)||atmoDirty){atmoDirty=false;computeAP();applyAP()}
@@ -2015,13 +2039,14 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;UT.val
   for(const h of holos){const u=h.userData;u.l.rotation.y=T*.8+u.ph;u.l.rotation.x=T*.5;u.l2.rotation.y=-T*1.3;u.l.position.y=.62+Math.sin(T*1.5+u.ph)*.05}
   searchers.forEach((s,n)=>{s.rotation.y=T*.35+n*2.4});
   const ba=T*.035;blimp.position.set(Math.cos(ba)*17,11.5+Math.sin(T*.4)*.3,Math.sin(ba)*17);blimp.rotation.y=-ba-Math.PI;blimp.userData.lights.forEach(l=>l.visible=Math.sin(T*3)>0);
-  if(tiltOn){tiltV3.copy(controls.target).project(camera);const fy=Math.max(.15,Math.min(.85,(tiltV3.y+1)/2));tiltR+=(fy-tiltR)*Math.min(1,dt*4);tiltH.uniforms.uR.value=tiltV.uniforms.uR.value=tiltR}
+  if(tiltOn){tiltV3.copy(faceHL.visible?faceHL.position:controls.target).project(camera);const fy=Math.max(.15,Math.min(.85,(tiltV3.y+1)/2));   // beim Zielen mit Neon liegt die scharfe Zone auf der Fläche
+   tiltR+=(fy-tiltR)*Math.min(1,dt*4);tiltH.uniforms.uR.value=tiltV.uniforms.uR.value=tiltR}
   glitchV*=Math.pow(.02,dt);fx.uniforms.uGlitch.value=glitchV;
   composer.render();
   if(!fpsDone){fpsT+=dt;if(fpsT>2){fpsN++;if(fpsT>6){fpsDone=true;const fps=fpsN/4;if(fps<24&&Q&&!qManual){setQuality(0,false);toast('Effekte reduziert, damit alles flüssig läuft')}}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(t=>{last=t;frame(t);const l=$('#load');l.style.opacity='0';setTimeout(()=>l.remove(),900)});
-window.NEON={setHour,setWeather,nextDaytime,wth,get hour(){return hour},AP,idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
+window.NEON={faceHL,setHour,setWeather,nextDaytime,wth,get hour(){return hour},AP,idleState:()=>({idle,mouseXY,over:overUI(),can:canIdle()}),roadAxis,roadKind,setPullMode,killIntro,get G(){return G},set G(v){G=v},rebuild,snap,load,restore,pick,makePlan,apply,setTool,generate,state,STATS,B,undo,redo,rectPlan,extrude,pullApply,regionOf,topRegion,botRegion,sideRegion,project,setQuality,setTilt,camera,controls,hl,keys,KV,topOf,rng,segOf,get tiltOn(){return tiltOn},get gcars(){return gcars.length},get T(){return T}};
 }
 </script>
 <script>setTimeout(function(){var l=document.getElementById('load');if(l&&!window.NEON){document.getElementById('loadP').textContent=tr('three.js konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.');}},15000);</script>
